@@ -2,6 +2,28 @@
 
 Run `npm install`, then `npm run dev`. Open http://localhost:3000. Production validation: `npm run build`; run with `npm start`.
 
+## Deploy on Vercel
+
+1. Open [Vercel New Project](https://vercel.com/new), sign in with GitHub, and import `Deepaksharma1408/Poddar`.
+2. Use the following project settings, then select **Deploy**:
+
+   | Setting | Value |
+   | --- | --- |
+   | Production branch | `main` |
+   | Framework preset | Next.js |
+   | Root directory | Repository root (`./`) |
+   | Node.js version | 24.x (from `package.json`) |
+   | Install command | `npm ci` (from `vercel.json`) |
+   | Build command | `npm run build` (from `vercel.json`) |
+   | Output directory | Next.js default; leave the override disabled |
+   | Environment variables | None required for this prototype |
+
+3. Open the deployment URL provided by Vercel. Once the Git integration is connected, pushes to `main` trigger production deployments; other branches receive preview deployments.
+
+`vercel.json` uses Vercel's native Next.js integration. No custom server, catch-all rewrite, static-export setting, database, or Vercel token is required to import this demo. `.nvmrc` matches the Node.js major used on Vercel. `.vercelignore` excludes build caches, local environment files, reference HTML, QA results and screenshots from CLI uploads; the logo and campus banner remain included. `.vercel/` project-linking metadata is ignored by Git.
+
+The deployed prototype still saves changes only in each visitor's browser. Deployment does not add shared records, authentication, banking or payment-gateway connections. This repository is prepared for deployment; the live URL is created when the Vercel project is imported and deployed.
+
 ## Android / iPhone responsive layouts
 
 The interface adapts to narrow phones, larger phones, tablets and landscape layouts. Mobile fee, student, leave and payroll tables become labeled cards. Detailed installment schedules and other wide school records stay in contained, keyboard-focusable swipe regions. The mobile menu locks background scrolling, isolates background controls, traps keyboard focus and restores focus when dismissed. Menu and dialog close controls stay available while their panels scroll.

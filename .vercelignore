@@ -1,0 +1,10 @@
+.git/
+.vercel/
+.next/
+node_modules/
+*.tsbuildinfo
+*.log
+.env*
+source-reference.html
+responsive-qa.json
+public/*-preview.png
