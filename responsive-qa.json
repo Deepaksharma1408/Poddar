@@ -1,0 +1,402 @@
+{
+  "method": "Chromium browser viewport checks; not physical Android/iOS or native Safari testing",
+  "pageAudits": [
+    {
+      "size": 320,
+      "page": "Overview",
+      "content": 305,
+      "title": "Welcome to Poddar Connect.",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Students",
+      "content": 305,
+      "title": "Students",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Teachers",
+      "content": 305,
+      "title": "Teachers",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Attendance",
+      "content": 305,
+      "title": "Attendance",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Fees & payments",
+      "content": 305,
+      "title": "Fees & payments",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Payroll",
+      "content": 305,
+      "title": "Payroll",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Leave requests 2",
+      "content": 305,
+      "title": "Leave requests",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Academics",
+      "content": 305,
+      "title": "Academics",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Transport",
+      "content": 305,
+      "title": "Transport",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Library",
+      "content": 305,
+      "title": "Library",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Reports",
+      "content": 305,
+      "title": "Reports",
+      "viewport": 305
+    },
+    {
+      "size": 320,
+      "page": "Settings",
+      "content": 305,
+      "title": "Settings",
+      "viewport": 305
+    },
+    {
+      "size": 390,
+      "page": "Overview",
+      "content": 375,
+      "viewport": 375
+    },
+    {
+      "size": 390,
+      "page": "Students",
+      "content": 375,
+      "viewport": 375
+    },
+    {
+      "size": 390,
+      "page": "Teachers",
+      "content": 375,
+      "viewport": 375
+    },
+    {
+      "size": 390,
+      "page": "Attendance",
+      "content": 375,
+      "viewport": 375
+    },
+    {
+      "size": 390,
+      "page": "Fees & payments",
+      "content": 375,
+      "viewport": 375
+    },
+    {
+      "size": 390,
+      "page": "Payroll",
+      "content": 375,
+      "viewport": 375
+    },
+    {
+      "size": 390,
+      "page": "Leave requests 2",
+      "content": 375,
+      "viewport": 375
+    },
+    {
+      "size": 390,
+      "page": "Academics",
+      "content": 390,
+      "viewport": 390
+    },
+    {
+      "size": 390,
+      "page": "Transport",
+      "content": 390,
+      "viewport": 390
+    },
+    {
+      "size": 390,
+      "page": "Library",
+      "content": 390,
+      "viewport": 390
+    },
+    {
+      "size": 390,
+      "page": "Reports",
+      "content": 375,
+      "viewport": 375
+    },
+    {
+      "size": 390,
+      "page": "Settings",
+      "content": 375,
+      "viewport": 375
+    },
+    {
+      "size": 768,
+      "page": "Overview",
+      "content": 753,
+      "viewport": 753
+    },
+    {
+      "size": 768,
+      "page": "Students",
+      "content": 753,
+      "viewport": 753
+    },
+    {
+      "size": 768,
+      "page": "Teachers",
+      "content": 753,
+      "viewport": 753
+    },
+    {
+      "size": 768,
+      "page": "Attendance",
+      "content": 768,
+      "viewport": 768
+    },
+    {
+      "size": 768,
+      "page": "Fees & payments",
+      "content": 753,
+      "viewport": 753
+    },
+    {
+      "size": 768,
+      "page": "Payroll",
+      "content": 753,
+      "viewport": 753
+    },
+    {
+      "size": 768,
+      "page": "Leave requests 2",
+      "content": 753,
+      "viewport": 753
+    },
+    {
+      "size": 768,
+      "page": "Academics",
+      "content": 768,
+      "viewport": 768
+    },
+    {
+      "size": 768,
+      "page": "Transport",
+      "content": 768,
+      "viewport": 768
+    },
+    {
+      "size": 768,
+      "page": "Library",
+      "content": 768,
+      "viewport": 768
+    },
+    {
+      "size": 768,
+      "page": "Reports",
+      "content": 768,
+      "viewport": 768
+    },
+    {
+      "size": 768,
+      "page": "Settings",
+      "content": 768,
+      "viewport": 768
+    },
+    {
+      "size": 1024,
+      "page": "Overview",
+      "content": 1009,
+      "viewport": 1009
+    },
+    {
+      "size": 1024,
+      "page": "Students",
+      "content": 1009,
+      "viewport": 1009
+    },
+    {
+      "size": 1024,
+      "page": "Teachers",
+      "content": 1009,
+      "viewport": 1009
+    },
+    {
+      "size": 1024,
+      "page": "Attendance",
+      "content": 1009,
+      "viewport": 1009
+    },
+    {
+      "size": 1024,
+      "page": "Fees & payments",
+      "content": 1009,
+      "viewport": 1009
+    },
+    {
+      "size": 1024,
+      "page": "Payroll",
+      "content": 1009,
+      "viewport": 1009
+    },
+    {
+      "size": 1024,
+      "page": "Leave requests 2",
+      "content": 1009,
+      "viewport": 1009
+    },
+    {
+      "size": 1024,
+      "page": "Academics",
+      "content": 1024,
+      "viewport": 1024
+    },
+    {
+      "size": 1024,
+      "page": "Transport",
+      "content": 1024,
+      "viewport": 1024
+    },
+    {
+      "size": 1024,
+      "page": "Library",
+      "content": 1024,
+      "viewport": 1024
+    },
+    {
+      "size": 1024,
+      "page": "Reports",
+      "content": 1024,
+      "viewport": 1024
+    },
+    {
+      "size": 1024,
+      "page": "Settings",
+      "content": 1009,
+      "viewport": 1009
+    }
+  ],
+  "dialogChecks": [
+    {
+      "form": "Payment",
+      "size": {
+        "width": 320,
+        "height": 568
+      },
+      "bottom": 556,
+      "inputs": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "left": 12,
+      "page": 320,
+      "right": 308,
+      "top": 12,
+      "viewport": 320
+    },
+    {
+      "form": "Payment",
+      "size": {
+        "width": 390,
+        "height": 844
+      },
+      "bottom": 821.6499881744385,
+      "inputs": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "left": 12,
+      "page": 390,
+      "right": 378.3999938964844,
+      "top": 22.350000381469727,
+      "viewport": 390
+    },
+    {
+      "form": "Payment",
+      "size": {
+        "width": 430,
+        "height": 932
+      },
+      "bottom": 865.6499862670898,
+      "inputs": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "left": 12,
+      "page": 430,
+      "right": 418.3999938964844,
+      "top": 66.3499984741211,
+      "viewport": 430
+    },
+    {
+      "form": "Payment",
+      "size": {
+        "width": 844,
+        "height": 390
+      },
+      "bottom": 382.3999938964844,
+      "inputs": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "left": 192,
+      "page": 844,
+      "right": 652,
+      "top": 8,
+      "viewport": 844
+    },
+    {
+      "form": "Payment",
+      "size": {
+        "width": 360,
+        "height": 400
+      },
+      "bottom": 388,
+      "inputs": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "left": 12,
+      "page": 360,
+      "right": 348,
+      "top": 12,
+      "viewport": 360
+    }
+  ]
+}

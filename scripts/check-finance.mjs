@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+
+function load(path, dependencies = {}) {
+  const source = ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+  const module = { exports: {} };
+  vm.runInNewContext(source, { module, exports: module.exports, require: name => { if (!(name in dependencies)) throw Error(`Unexpected import ${name}`); return dependencies[name]; }, Intl, Date });
+  return module.exports;
+}
+const finance=load('../lib/finance.ts');
+const {createFinance,feeSchedule,studentLedger,salaryBreakdown,round}=load('../lib/school-finance.ts',{'./finance':finance});
+const data=createFinance();
+const student=data.students[0];
+const opening=studentLedger(student,data.payments);
+assert.equal(round(opening.paid+opening.remaining),opening.total,'paid + remaining must equal total');
+assert.equal(round(opening.due+opening.upcoming),opening.remaining,'due is a subset of remaining');
+assert.equal(round(opening.schedule.reduce((a,c)=>a+c.amount,0)),opening.total,'schedule reconciles exactly');
+assert.ok(Math.abs(opening.total-62791.04)<0.02,'reducing-balance interest matches independent example');
+const pending={id:'test',studentId:student.id,amount:1000,date:'2026-11-04',method:'NEFT',reference:'TEST',verified:false};
+const waiting=studentLedger(student,[...data.payments,pending]);
+assert.equal(waiting.remaining,opening.remaining,'pending payment cannot reduce debt');
+assert.equal(waiting.pending,1000);
+const verified=studentLedger(student,[...data.payments,{...pending,verified:true}]);
+assert.equal(verified.remaining,round(opening.remaining-1000));
+assert.equal(verified.due,round(opening.due-1000),'partial payment reduces oldest overdue installment');
+assert.equal(round(verified.schedule.reduce((a,c)=>a+c.paid,0)),verified.paid,'allocated payments reconcile');
+const complete=studentLedger(student,[{...pending,amount:opening.total,verified:true}]);
+assert.equal(complete.remaining,0);assert.equal(complete.due,0);assert.equal(complete.status,'Paid in full');
+const flat=feeSchedule({...student.plan,interest:'Flat interest'});
+assert.equal(round(flat.reduce((a,c)=>a+c.amount,0)),65000);
+const free=feeSchedule({...student.plan,rate:0});assert.equal(round(free.reduce((a,c)=>a+c.amount,0)),60000);
+const full=feeSchedule({...student.plan,kind:'Full payment'});assert.equal(full.length,1);assert.equal(full[0].amount,60000);
+const quarterly=feeSchedule({...student.plan,kind:'Quarterly',down:0});assert.equal(quarterly.length,4);assert.equal(quarterly[1].date,'2026-10-01');
+const jan31=feeSchedule({...student.plan,start:'2027-01-31',months:2});assert.equal(jan31[2].date,'2027-02-28','month ends are clamped');
+const priya=data.staff[0];const base=salaryBreakdown(priya,[],data.policy);
+assert.equal(base.net,40600);assert.equal(base.paidDeduction,0);assert.equal(base.balance,3);
+const paidLeave={...data.leaves[0],status:'Approved'};
+const paid=salaryBreakdown(priya,[paidLeave],data.policy);
+assert.equal(paid.net,base.net,'approved paid leave must preserve salary');assert.equal(paid.balance,1);
+const rejected=salaryBreakdown(priya,[{...paidLeave,status:'Rejected'}],data.policy);assert.equal(rejected.net,base.net);assert.equal(rejected.balance,base.balance);
+const halfPaid=salaryBreakdown(priya,[paidLeave],{divisor:30,paidCoverage:50});assert.equal(halfPaid.paidDeduction,2800);assert.equal(halfPaid.net,37800);
+const amit=data.staff[3];const excess=salaryBreakdown(amit,[{...paidLeave,staffId:amit.id,days:3}],data.policy);
+assert.equal(excess.paidDays,1);assert.equal(excess.excess,2);assert.equal(excess.unpaidDays,2);assert.equal(excess.net,33600);
+const halfDay=salaryBreakdown(amit,[{...paidLeave,staffId:amit.id,kind:'Unpaid',days:0.5}],data.policy);assert.equal(halfDay.net,35400);
+const cap=salaryBreakdown({...amit,unpaidDays:40},[],data.policy);assert.equal(cap.net,0,'deductions never create negative pay');
+console.log('Passed: ledger totals, due/remaining split, pending NEFT, partial allocation, full settlement, interest methods, rounding, month ends, paid/unpaid leave, quota overflow, half days and deduction caps.');
