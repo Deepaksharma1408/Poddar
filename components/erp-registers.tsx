@@ -75,7 +75,7 @@ export default function ErpRegisters({ page, data, setData }: {
       </table>
       {!entries.length && <p className="empty-state">No settled transactions in this period.</p>}
     </div>
-    <div className="premium-dialog" style={{maxWidth: 740}}>
+    <div className="embedded-form-panel" style={{maxWidth: 740}}>
       <h3>Department expenses</h3>
       <form onSubmit={event => {
         event.preventDefault();

@@ -112,62 +112,66 @@ export default function PayrollRegister({
         </div>
       </div>
 
-      <div className="list-toolbar">
-        <label>
-          Payroll month
-          <input
-            aria-label="Payroll month"
-            type="month"
-            value={period}
-            onChange={event => {
-              setPeriod(event.target.value);
-              setSelected([]);
-            }}
-          />
-        </label>
-        <label>
-          Department
-          <select
-            value={department}
-            onChange={event => {
-              setDepartment(event.target.value);
-              setSelected([]);
-            }}
-          >
-            <option value="">All departments</option>
-            {[...new Set(data.staff.map(employee => employee.subject))].map(value => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Payroll divisor
-          <select
-            value={data.policy.divisorMode ?? 'Fixed'}
-            onChange={event => {
-              const divisorMode = event.target.value as Policy['divisorMode'];
-              setData(current => ({ ...current, policy: { ...current.policy, divisorMode } }));
-            }}
-          >
-            <option>Fixed</option>
-            <option>Calendar days</option>
-            <option>Working days</option>
-          </select>
-        </label>
-        <label>
-          Transfer mode
-          <select value={mode} onChange={event => setMode(event.target.value)}>
-            {['NEFT', 'RTGS', 'IMPS', 'Bank transfer', 'Cheque'].map(option => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
-        </label>
-        <button className="button primary" disabled={!period} onClick={calculate}>
-          Calculate payroll
-        </button>
-        <button className="button secondary" disabled={!queued.length} onClick={queueBatch}>
-          Queue selected for {mode} ({queued.length})
-        </button>
+      <div className="list-toolbar payroll-toolbar">
+        <div className="payroll-filter-group">
+          <label>
+            Payroll month
+            <input
+              aria-label="Payroll month"
+              type="month"
+              value={period}
+              onChange={event => {
+                setPeriod(event.target.value);
+                setSelected([]);
+              }}
+            />
+          </label>
+          <label>
+            Department
+            <select
+              value={department}
+              onChange={event => {
+                setDepartment(event.target.value);
+                setSelected([]);
+              }}
+            >
+              <option value="">All departments</option>
+              {[...new Set(data.staff.map(employee => employee.subject))].map(value => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Payroll divisor
+            <select
+              value={data.policy.divisorMode ?? 'Fixed'}
+              onChange={event => {
+                const divisorMode = event.target.value as Policy['divisorMode'];
+                setData(current => ({ ...current, policy: { ...current.policy, divisorMode } }));
+              }}
+            >
+              <option>Fixed</option>
+              <option>Calendar days</option>
+              <option>Working days</option>
+            </select>
+          </label>
+          <label>
+            Transfer mode
+            <select value={mode} onChange={event => setMode(event.target.value)}>
+              {['NEFT', 'RTGS', 'IMPS', 'Bank transfer', 'Cheque'].map(option => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="payroll-action-group">
+          <button className="button primary" disabled={!period} onClick={calculate}>
+            Calculate payroll
+          </button>
+          <button className="button secondary" disabled={!queued.length} onClick={queueBatch}>
+            Queue selected for {mode} ({queued.length})
+          </button>
+        </div>
       </div>
 
       {message && (

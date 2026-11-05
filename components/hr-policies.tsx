@@ -15,7 +15,7 @@ export default function HrPolicies({ data, setData }: {
   const current = rules.find(rule => rule.name === selected);
   return <section className="card">
     <div className="premium-card-heading"><div><h3>Leave category policies</h3><p>Set paid treatment, annual entitlement, monthly accrual and carry-forward.</p></div></div>
-    <div className="premium-dialog" style={{maxWidth: 820}}>
+    <div className="embedded-form-panel" style={{maxWidth: 820}}>
       <label>Policy<select value={selected} onChange={event => setSelected(event.target.value)}><option value="">Create a category</option>{rules.map(rule => <option key={rule.name}>{rule.name}</option>)}</select></label>
       <form key={selected} onSubmit={event => {
         event.preventDefault();

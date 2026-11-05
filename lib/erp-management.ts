@@ -1,22 +1,61 @@
 import { AS_OF, round, studentLedger, type SchoolFinance } from './school-finance';
 
-export const roles = ['Super Admin', 'Principal', 'Management', 'HR Admin', 'Accounts Admin', 'Accountant', 'Cashier', 'HOD', 'Teacher', 'Non-teaching Staff', 'Student'] as const;
+export const roles = ['Super Admin', 'Principal', 'Management', 'HR Admin', 'Accounts Admin', 'Accountant', 'Cashier', 'HOD', 'Teacher', 'Non-teaching Staff', 'Student', 'Parent'] as const;
 export type DemoRole = typeof roles[number];
 
-const studentPages = ['Students', 'Student profiles', 'Attendance', 'Academics', 'Library', 'Transport'];
-const peoplePages = ['Employees', 'Employee profiles', 'Employee attendance', 'Leave requests', 'HR policies', 'Leave calendar'];
-const financePages = ['Fees & payments', 'Fee administration', 'Compensation', 'Bank reconciliation', 'Accounting'];
+const studentPages = ['Students', 'Student profiles', 'Attendance', 'Student Attendance', 'Parents & Guardians', 'Academics', 'Classes & Sections', 'Timetable', 'Examinations & Results', 'Library', 'Transport'];
+const peoplePages = ['Employees', 'Teachers', 'Teachers & Staff', 'Employee profiles', 'Employee attendance', 'Leave requests', 'Leave Management', 'HR policies', 'Leave calendar'];
+const financePages = ['Fees & payments', 'Fees & Payments', 'Fee administration', 'Fee Structures & Adjustments', 'Compensation', 'Bank reconciliation', 'Accounting', 'Accounting & Ledgers'];
 const rolePages: Record<DemoRole, string[]> = {
   'Super Admin': [], Principal: [...studentPages, ...peoplePages],
-  Management: [...studentPages, ...peoplePages, ...financePages, 'Teachers', 'Payroll', 'Reports', 'Notifications'],
-  'HR Admin': peoplePages, 'Accounts Admin': [...financePages, 'Payroll', 'Reports', 'Notifications'],
-  Accountant: ['Fees & payments', 'Bank reconciliation', 'Accounting', 'Reports'],
-  Cashier: ['Fees & payments'], HOD: ['Students', 'Attendance', 'Academics', 'Employee attendance', 'Leave requests', 'Leave calendar'],
-  Teacher: [], 'Non-teaching Staff': [], Student: [],
+  Management: [...studentPages, ...peoplePages, ...financePages, 'Teachers', 'Teachers & Staff', 'Payroll', 'Payroll & Salary', 'Reports', 'Student Reports', 'Financial Reports', 'Payroll Reports', 'Notifications', 'Notification Center', 'Announcements & Notices'],
+  'HR Admin': peoplePages, 'Accounts Admin': [...financePages, 'Payroll', 'Payroll & Salary', 'Reports', 'Student Reports', 'Financial Reports', 'Payroll Reports', 'Notifications', 'Notification Center'],
+  Accountant: ['Fees & payments', 'Fees & Payments', 'Bank reconciliation', 'Accounting', 'Accounting & Ledgers', 'Reports', 'Financial Reports'],
+  Cashier: ['Fees & payments', 'Fees & Payments'], HOD: ['Students', 'Attendance', 'Student Attendance', 'Academics', 'Classes & Sections', 'Timetable', 'Examinations & Results', 'Employee attendance', 'Leave requests', 'Leave Management', 'Leave calendar'],
+  Teacher: [], 'Non-teaching Staff': [], Student: [], Parent: [],
+};
+
+const pageAliases: Record<string, string> = {
+  'Dashboard': 'Overview',
+  'Overview': 'Dashboard',
+  'Fees & Payments': 'Fees & payments',
+  'Fees & payments': 'Fees & Payments',
+  'Payroll & Salary': 'Payroll',
+  'Payroll': 'Payroll & Salary',
+  'Fee Structures & Adjustments': 'Fee administration',
+  'Fee administration': 'Fee Structures & Adjustments',
+  'Student Attendance': 'Attendance',
+  'Attendance': 'Student Attendance',
+  'Leave Management': 'Leave requests',
+  'Leave requests': 'Leave Management',
+  'Teachers & Staff': 'Teachers',
+  'Teachers': 'Teachers & Staff',
+  'Accounting & Ledgers': 'Accounting',
+  'Accounting': 'Accounting & Ledgers',
+  'Campus Settings': 'Settings',
+  'Settings': 'Campus Settings',
+  'Role & Permission Management': 'Permissions',
+  'Permissions': 'Role & Permission Management',
+  'Notification Center': 'Notifications',
+  'Notifications': 'Notification Center',
+  'Announcements & Notices': 'Notifications',
+  'Student Reports': 'Reports',
+  'Financial Reports': 'Reports',
+  'Payroll Reports': 'Reports',
+  'Reports': 'Student Reports',
+  'Audit Trail / System Logs': 'Permissions',
+  'Classes & Sections': 'Academics',
+  'Academics': 'Classes & Sections',
+  'Timetable': 'Academics',
+  'Examinations & Results': 'Academics',
+  'Parents & Guardians': 'Students',
 };
 
 export function canOpenPage(role: DemoRole, page: string) {
-  return role === 'Super Admin' || rolePages[role].includes(page);
+  if (role === 'Super Admin') return true;
+  const legacy = pageAliases[page] ?? page;
+  const allowedList = rolePages[role] ?? [];
+  return allowedList.includes(page) || allowedList.includes(legacy);
 }
 
 export type FeeAdjustment = {

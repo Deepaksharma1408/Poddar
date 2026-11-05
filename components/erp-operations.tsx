@@ -81,7 +81,7 @@ export default function ErpOperations({ data, setData, notify, page, canManagePa
         ['Reference', 'Amount', 'Matched on'], ...(data.reconciliations ?? []).map(entry => [entry.reference, entry.amount, entry.date]),
       ])}>Export matches</button>
     </div>
-    <div className="premium-dialog" style={{maxWidth: 640}}>
+    <div className="embedded-form-panel" style={{maxWidth: 640}}>
       <form onSubmit={event => {
         event.preventDefault();
         const fields = new FormData(event.currentTarget);
@@ -124,7 +124,7 @@ export default function ErpOperations({ data, setData, notify, page, canManagePa
       </form>
       {result && <p role="status">{result}</p>}
     </div>
-    {canManagePay && <div className="premium-dialog" style={{maxWidth: 700}}>
+    {canManagePay && <div className="embedded-form-panel" style={{maxWidth: 700}}>
       <h3>Simulated bank accounts</h3>
       <form onSubmit={event => {
         event.preventDefault();

@@ -16,7 +16,7 @@ export default function Compensation({ data, setData }: {
   return <>
     <section className="card">
       <div className="premium-card-heading"><div><h3>Salary revisions</h3><p>Approved terms take effect in the selected month. Previously approved payroll keeps its original amounts.</p></div></div>
-      <div className="premium-dialog" style={{maxWidth: 800}}><form onSubmit={event => {
+      <div className="embedded-form-panel" style={{maxWidth: 800}}><form onSubmit={event => {
         event.preventDefault();
         const fields = new FormData(event.currentTarget);
         const revision: SalaryRevision = {
@@ -50,7 +50,7 @@ export default function Compensation({ data, setData }: {
           ['Employee', 'Type', 'Amount', 'Monthly recovery', 'First month', 'Status', 'Outstanding'],
           ...(data.employeeLoans ?? []).map(loan => [names.get(loan.employeeId) ?? loan.employeeId, loan.kind, loan.amount, loan.installment, loan.firstPeriod, loan.status, loanOutstanding(data, loan)]),
         ])}>Export advances and loans</button></div>
-      <div className="premium-dialog" style={{maxWidth: 800}}><form onSubmit={event => {
+      <div className="embedded-form-panel" style={{maxWidth: 800}}><form onSubmit={event => {
         event.preventDefault();
         const fields = new FormData(event.currentTarget);
         const loan: EmployeeLoan = {

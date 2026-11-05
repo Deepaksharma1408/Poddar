@@ -64,7 +64,7 @@ export default function PeopleCalendar({ data, setData, canEdit }: {
     </section>
     {canEdit && <section className="card">
       <div className="premium-card-heading"><div><h3>Holidays and vacations</h3></div></div>
-      <div className="premium-dialog" style={{maxWidth: 740}}><form onSubmit={event => {
+      <div className="embedded-form-panel" style={{maxWidth: 740}}><form onSubmit={event => {
         event.preventDefault();
         const fields = new FormData(event.currentTarget);
         const date = String(fields.get('date'));
