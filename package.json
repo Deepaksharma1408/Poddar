@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "test:finance": "node scripts/check-finance.mjs"
+    "test:finance": "node scripts/check-finance.mjs",
+    "test:e2e": "node scripts/test-e2e-all.mjs",
+    "test": "npm run test:finance && npm run test:e2e"
   },
   "dependencies": {
     "next": "^16.0.0",

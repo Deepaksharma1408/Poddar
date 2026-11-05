@@ -102,3 +102,11 @@ button,a,input,select{touch-action:manipulation}
  .topbar{position:relative}.modal-backdrop{align-items:flex-start;padding-block:8px}.modal{max-height:calc(100dvh - 16px);padding-top:25px}.sidebar .brand{padding-top:27px;padding-bottom:15px}.sidebar .campus-switch{padding-block:12px}.sidebar .nav-group{margin-bottom:10px}
 }
 @media(prefers-reduced-motion:reduce){.sidebar{transition:none}}
+@media print {
+  body:has(.erp-print-payslip) { overflow: visible !important; }
+  body:has(.erp-print-payslip) * { visibility: hidden; }
+  body .erp-print-payslip, body .erp-print-payslip * { visibility: visible !important; }
+  body .modal-backdrop:has(.erp-print-payslip),
+  body .modal:has(.erp-print-payslip) { position: static; display: block; overflow: visible; max-height: none; }
+  body .erp-print-payslip { position: absolute; inset: 0 auto auto 0; width: 100%; padding: 20mm; color: #000; }
+}
