@@ -74,6 +74,7 @@ export interface FeePayment {
   studentId: string;
   amountPaise: number;
   date: string;
+  time?: string; // e.g. '10:45 AM' or '02:15 PM'
   method: 'NEFT' | 'UPI' | 'Bank transfer' | 'Cheque' | 'Cash' | 'Demand Draft';
   reference: string; // Unique UTR / Cheque / Txn No
   receiptNo: string;
@@ -83,6 +84,8 @@ export interface FeePayment {
   refundReason?: string;
   createdBy: Role;
   notes?: string;
+  bankAccount?: string;
+  gatewayTxnId?: string;
 }
 
 export interface DefaulterReminder {
@@ -357,6 +360,169 @@ export interface CashBookEntry {
   balancePaise: number;
   reconciled: boolean;
   reconciledAt?: string;
+}
+
+// ---------------------------
+// 7. DOUBLE-ENTRY ACCOUNTING & LEDGERS
+// ---------------------------
+export type AccountGroup = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense';
+
+export interface AccountHead {
+  id: string;
+  code: string; // e.g. '1010', '2010', '4010'
+  name: string;
+  group: AccountGroup;
+  balancePaise: number;
+  parentCode?: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export interface JournalEntryLine {
+  id: string;
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  debitPaise: number;
+  creditPaise: number;
+  narration?: string;
+}
+
+export interface JournalVoucher {
+  id: string;
+  voucherNumber: string; // e.g. 'JV-2026-001'
+  date: string;
+  voucherType: 'Journal' | 'Payment' | 'Receipt' | 'Contra';
+  lines: JournalEntryLine[];
+  totalPaise: number;
+  narration: string;
+  status: 'Posted' | 'Draft' | 'Void';
+  reference?: string;
+  createdBy: Role;
+  postedAt: string;
+}
+
+// ---------------------------
+// 8. MULTI-BANK DIRECTORY
+// ---------------------------
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  branch: string;
+  accountNumberMasked: string; // e.g. '••••3892'
+  accountType: 'Current Account' | 'Savings Account' | 'Collection Escrow';
+  ifsc: string;
+  openingBalancePaise: number;
+  currentBalancePaise: number;
+  lastReconciliationDate: string;
+  status: 'Active' | 'Inactive';
+}
+
+// ---------------------------
+// 9. FIXED ASSET REGISTER
+// ---------------------------
+export interface FixedAsset {
+  id: string;
+  assetCode: string; // e.g. 'FA-IT-001'
+  name: string;
+  category: 'Computer & IT Equipment' | 'Laboratory Apparatus' | 'Campus Infrastructure & Buildings' | 'Furniture & Fixtures' | 'Institutional Vehicles';
+  purchaseDate: string;
+  purchaseCostPaise: number;
+  depreciationMethod: 'Straight-line' | 'Written-down Value';
+  depreciationRatePct: number; // e.g. 15 for 15% per annum
+  accumulatedDepreciationPaise: number;
+  netBookValuePaise: number;
+  location: string;
+  custodian: string;
+  status: 'Active' | 'Disposed' | 'Under Maintenance';
+  invoiceRef?: string;
+  disposalDate?: string;
+  disposalProceedsPaise?: number;
+}
+
+// ---------------------------
+// 10. PURCHASE ORDERS
+// ---------------------------
+export interface PurchaseOrderItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPricePaise: number;
+  totalPaise: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string; // e.g. 'PO-2026-004'
+  vendorId: string;
+  vendorName: string;
+  orderDate: string;
+  expectedDeliveryDate: string;
+  items: PurchaseOrderItem[];
+  subtotalPaise: number;
+  gstRatePct: number;
+  gstPaise: number;
+  totalAmountPaise: number;
+  status: 'Draft' | 'Submitted' | 'Approved' | 'Partially Fulfilled' | 'Completed' | 'Cancelled';
+  approvedBy?: Role;
+  approvedAt?: string;
+  notes?: string;
+  linkedBillId?: string;
+}
+
+// ---------------------------
+// 11. DEFAULTER FOLLOW-UP & REMINDERS
+// ---------------------------
+export interface DefaulterFollowUp {
+  id: string;
+  studentId: string;
+  studentName: string;
+  date: string;
+  channel: 'WhatsApp' | 'SMS' | 'Email' | 'Phone Call' | 'In-Person Meeting';
+  remarks: string;
+  commitmentDate?: string;
+  commitmentAmountPaise?: number;
+  status: 'Promise to Pay' | 'Dispute Raised' | 'No Response' | 'Hardship Plea' | 'Resolved';
+  recordedBy: Role;
+}
+
+export interface ReminderDispatchLog {
+  id: string;
+  studentId: string;
+  studentName: string;
+  channel: 'WhatsApp' | 'SMS' | 'Email';
+  template: string;
+  timestamp: string;
+  status: 'Delivered' | 'Read' | 'Failed';
+  recipientTarget: string;
+}
+
+// ---------------------------
+// 12. ENHANCED SCHOLARSHIPS
+// ---------------------------
+export interface ScholarshipApplication {
+  id: string;
+  studentId: string;
+  studentName: string;
+  programme: string;
+  schemeName: string;
+  providerType: 'Government Body' | 'Institutional Trust' | 'Corporate CSR';
+  appliedAmountPaise: number;
+  sanctionedAmountPaise: number;
+  disbursedAmountPaise: number;
+  status: 'Submitted' | 'Documents Verified' | 'Approved' | 'Disbursed' | 'Rejected';
+  verificationChecklist: {
+    incomeCertificate: boolean;
+    domicileCertificate: boolean;
+    previousMarksheet: boolean;
+    bankPassbook: boolean;
+    casteCertificate?: boolean;
+  };
+  sanctionLetterNo?: string;
+  sanctionedDate?: string;
+  disbursedDate?: string;
+  remarks?: string;
 }
 
 // ---------------------------

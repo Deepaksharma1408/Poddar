@@ -18,11 +18,13 @@ import { useFinance } from '@/lib/finance-portal/store/finance-store';
 import { formatINR, toPaise } from '@/lib/finance-portal/finance/money';
 import { Dialog } from '@/components/finance-portal/ui/dialog';
 import { useToast } from '@/components/finance-portal/ui/toast';
+import { useApprovalNotice } from '@/components/finance-portal/ui/approval-notice';
 import type { PettyCashVoucher } from '@/lib/finance-portal/types/finance';
 
 export default function PettyCashPage() {
   const { state, dispatch, currentDate } = useFinance();
   const { showToast } = useToast();
+  const { showApprovalNotice } = useApprovalNotice();
   const currentRole = state.settings.currentRole;
 
   const floatPaise = state.settings.statutory.pettyCashFloatPaise;
@@ -90,6 +92,14 @@ export default function PettyCashPage() {
 
   const handleReplenishFloat = () => {
     showToast('Replenishment Requested', `A reimbursement request of ${formatINR(spentPaise)} has been submitted to Accounts.`, 'success');
+    showApprovalNotice({
+      itemTitle: 'Petty Cash Float Replenishment',
+      category: 'Petty Cash',
+      amountPaise: spentPaise,
+      reference: `REQ-FLOAT-${currentDate}`,
+      nextApproverTier: 'Accounts Admin / Management',
+      notes: 'Reimbursement of spent imprest vouchers submitted for replenishment authorization.',
+    });
   };
 
   const handleReconcileCashCount = () => {

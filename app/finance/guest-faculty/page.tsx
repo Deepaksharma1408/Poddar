@@ -12,9 +12,11 @@ import {
   Clock,
   Calendar,
   Search,
+  Download,
 } from 'lucide-react';
 import { useFinance } from '@/lib/finance-portal/store/finance-store';
 import { formatINR, toPaise } from '@/lib/finance-portal/finance/money';
+import { SimplePDF, triggerPDFDownload, PDF_COLORS } from '@/lib/finance-portal/export/pdf-generator';
 import { Dialog } from '@/components/finance-portal/ui/dialog';
 import { useToast } from '@/components/finance-portal/ui/toast';
 import type { GuestFacultyLog } from '@/lib/finance-portal/types/finance';
@@ -92,6 +94,60 @@ export default function GuestFacultyPage() {
     showToast('Status Updated', `Session moved to ${nextStatus}.`, 'info');
   };
 
+  const handleDownloadHonorariumPDF = (log: GuestFacultyLog) => {
+    const pdf = new SimplePDF();
+    let y = pdf.drawHeader(state.settings.institutionName, 'GUEST FACULTY HONORARIUM VOUCHER', 'ACADEMIC CONSULTING & VISITING FACULTY');
+
+    pdf.drawRect(40, y - 56, pdf.pageWidth - 80, 48, {
+      fill: PDF_COLORS.lightBg,
+      stroke: PDF_COLORS.navy,
+      lineWidth: 0.5,
+    });
+
+    pdf.drawText(`VOUCHER NO: HON-${log.id}`, 52, y - 14, { font: 'Helvetica-Bold', size: 9, color: PDF_COLORS.navy });
+    pdf.drawText(`Date: ${log.date}  |  Department: ${log.department}`, 52, y - 26, { font: 'Helvetica', size: 8 });
+    pdf.drawText(`Session Timings: ${log.startTime} to ${log.endTime} (${log.durationHours} Hours)`, 52, y - 38, { font: 'Helvetica', size: 8 });
+
+    pdf.drawText('NET HONORARIUM PAYABLE', pdf.pageWidth - 180, y - 14, { font: 'Helvetica-Bold', size: 8, color: PDF_COLORS.mutedText, align: 'right' });
+    pdf.drawText(formatINR(log.netPayablePaise), pdf.pageWidth - 52, y - 14, { font: 'Helvetica-Bold', size: 14, color: PDF_COLORS.green, align: 'right' });
+
+    y -= 80;
+    pdf.drawText(`Guest Faculty Name: ${log.facultyName}`, 40, y, { font: 'Helvetica-Bold', size: 9 });
+    pdf.drawText(`Topic / Course Delivered: ${log.courseTitle}`, 40, y - 14, { font: 'Helvetica', size: 8.5 });
+
+    y -= 36;
+    pdf.drawLine(40, y, pdf.pageWidth - 40, y, { stroke: PDF_COLORS.border });
+    y -= 18;
+
+    pdf.drawText('Honorarium & Statutory TDS Computation:', 40, y, { font: 'Helvetica-Bold', size: 8.5, color: PDF_COLORS.navy });
+    y -= 16;
+    pdf.drawText(`Gross Lecture Honorarium (${log.durationHours} hrs @ ${formatINR(log.hourlyRatePaise)}/hr):`, 40, y, { font: 'Helvetica', size: 8 });
+    pdf.drawText(formatINR(log.totalPaise), 380, y, { font: 'Helvetica-Bold', size: 8, align: 'right' });
+    y -= 14;
+    pdf.drawText(`Less: TDS Withheld under Section 194J (${log.tdsRatePct}%):`, 40, y, { font: 'Helvetica', size: 8, color: PDF_COLORS.crimson });
+    pdf.drawText(`- ${formatINR(log.tdsDeductionPaise)}`, 380, y, { font: 'Helvetica-Bold', size: 8, color: PDF_COLORS.crimson, align: 'right' });
+    y -= 14;
+    pdf.drawLine(40, y, 380, y, { stroke: PDF_COLORS.navy, lineWidth: 0.5 });
+    y -= 14;
+    pdf.drawText('Net Remittance to Bank Account:', 40, y, { font: 'Helvetica-Bold', size: 8.5, color: PDF_COLORS.green });
+    pdf.drawText(formatINR(log.netPayablePaise), 380, y, { font: 'Helvetica-Bold', size: 8.5, color: PDF_COLORS.green, align: 'right' });
+
+    y -= 80;
+    pdf.drawText('Head of Department (HOD)', 40, y, { font: 'Helvetica-Bold', size: 8 });
+    pdf.drawText('Syllabus & Lecture Delivery Verified', 40, y - 10, { font: 'Helvetica', size: 7.5, color: PDF_COLORS.mutedText });
+
+    pdf.drawText('Accounts Officer', pdf.pageWidth - 180, y, { font: 'Helvetica-Bold', size: 8, align: 'right' });
+    pdf.drawText('TDS 194J Compliant Settlement', pdf.pageWidth - 180, y - 10, { font: 'Helvetica', size: 7.5, color: PDF_COLORS.mutedText, align: 'right' });
+
+    pdf.drawFooter('Institutional consulting honorarium voucher. Form 16A will be issued at the end of the financial quarter.');
+    triggerPDFDownload(`Honorarium-${log.id}.pdf`, pdf.output());
+    showToast('Voucher Downloaded', `Downloaded Honorarium-${log.id}.pdf`, 'info');
+  };
+
+  const totalGrossHonorariumPaise = state.guestFacultyLogs.reduce((s, l) => s + l.totalPaise, 0);
+  const totalTdsPaise = state.guestFacultyLogs.reduce((s, l) => s + l.tdsDeductionPaise, 0);
+  const totalNetHonorariumPaise = state.guestFacultyLogs.reduce((s, l) => s + l.netPayablePaise, 0);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Title */}
@@ -123,6 +179,49 @@ export default function GuestFacultyPage() {
           <PlusCircle size={15} />
           <span>Log Guest Session</span>
         </button>
+      </div>
+
+      {/* Executive KPI Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #102d47' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Total Gross Honorarium
+          </span>
+          <div className="headline-number" style={{ color: '#102d47', margin: '6px 0 2px' }}>
+            {formatINR(totalGrossHonorariumPaise)}
+          </div>
+          <small style={{ fontSize: '11px', color: '#64748b' }}>Across all expert lecture sessions</small>
+        </div>
+
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #ad211d' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            TDS u/s 194J Withheld
+          </span>
+          <div className="headline-number" style={{ color: '#ad211d', margin: '6px 0 2px' }}>
+            {formatINR(totalTdsPaise)}
+          </div>
+          <small style={{ fontSize: '11px', color: '#64748b' }}>10% professional tax withholding</small>
+        </div>
+
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #25866b' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Net Honorarium Paid / Due
+          </span>
+          <div className="headline-number" style={{ color: '#25866b', margin: '6px 0 2px' }}>
+            {formatINR(totalNetHonorariumPaise)}
+          </div>
+          <small style={{ fontSize: '11px', color: '#25866b', fontWeight: 550 }}>Payable via bank transfer</small>
+        </div>
+
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #b49662' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Total Guest Lectures
+          </span>
+          <div className="headline-number" style={{ color: '#102d47', margin: '6px 0 2px' }}>
+            {state.guestFacultyLogs.length} Sessions
+          </div>
+          <small style={{ fontSize: '11px', color: '#64748b' }}>Verified by academic HODs</small>
+        </div>
       </div>
 
       {/* Table Card */}
@@ -228,6 +327,25 @@ export default function GuestFacultyPage() {
                           Pay Honorarium
                         </button>
                       )}
+                      <button
+                        onClick={() => handleDownloadHonorariumPDF(log)}
+                        title="Download Honorarium Voucher PDF"
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          backgroundColor: '#ffffff',
+                          color: '#102d47',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                        }}
+                      >
+                        <Download size={11} style={{ color: '#b49662' }} />
+                        <span>PDF</span>
+                      </button>
                     </div>
                   </td>
                 </tr>

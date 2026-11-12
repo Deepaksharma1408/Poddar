@@ -22,6 +22,7 @@ export interface PagePermission {
 
 export const ROUTE_PERMISSIONS: PagePermission[] = [
   { path: '/dashboard', label: 'Dashboard', allowedRoles: ALL_ROLES },
+  { path: '/approvals', label: 'Approval Inbox', allowedRoles: ALL_ROLES },
   { path: '/fees', label: 'Student Fees', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Cashier', 'Director'] },
   { path: '/dues', label: 'Defaulters & Dues', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Cashier', 'Director'] },
   { path: '/scholarships', label: 'Scholarships', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Director'] },
@@ -35,6 +36,9 @@ export const ROUTE_PERMISSIONS: PagePermission[] = [
   { path: '/budgets', label: 'Department Budgets', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Director', 'HOD'] },
   { path: '/events', label: 'Campus Events', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Director', 'HOD'] },
   { path: '/cashbook', label: 'Cash & Bank Book', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Director'] },
+  { path: '/accounting', label: 'Accounting & Ledgers', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Director'] },
+  { path: '/assets', label: 'Fixed Asset Register', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Director'] },
+  { path: '/purchase-orders', label: 'Purchase Orders', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Director', 'HOD'] },
   { path: '/reports', label: 'Financial Reports', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Director'] },
   { path: '/audit', label: 'Audit Trail', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Director'] },
   { path: '/settings', label: 'System Settings', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin'] },

@@ -22,6 +22,7 @@ import { canApproveRecord } from '@/lib/finance-portal/security/rbac';
 import { Dialog } from '@/components/finance-portal/ui/dialog';
 import { ConfirmDialog } from '@/components/finance-portal/ui/confirm-dialog';
 import { useToast } from '@/components/finance-portal/ui/toast';
+import { useApprovalNotice } from '@/components/finance-portal/ui/approval-notice';
 import { generateTallyOpExCSV } from '@/lib/finance-portal/export/tally-export';
 import { downloadCSV } from '@/lib/finance-portal/security/csv-sanitizer';
 import type { OpExBill, Vendor } from '@/lib/finance-portal/types/finance';
@@ -29,6 +30,7 @@ import type { OpExBill, Vendor } from '@/lib/finance-portal/types/finance';
 export default function ExpensesPage() {
   const { state, dispatch, currentDate } = useFinance();
   const { showToast } = useToast();
+  const { showApprovalNotice } = useApprovalNotice();
   const currentRole = state.settings.currentRole;
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,6 +108,14 @@ export default function ExpensesPage() {
 
     dispatch({ type: 'CREATE_OPEX_BILL', bill: newBill });
     showToast('Bill Submitted', `OpEx Invoice #${newBill.billNumber} queued for Accounts review.`, 'success');
+    showApprovalNotice({
+      itemTitle: `${newBill.vendorName} — ${newBill.category}`,
+      category: 'Operating Expenses',
+      amountPaise: newBill.netPayablePaise,
+      reference: newBill.billNumber,
+      nextApproverTier: 'Accounts Admin / Management',
+      notes: 'Vendor tax invoice submitted for verification and statutory signoff.',
+    });
     setBillModalOpen(false);
     setBillNumber('');
     setBaseRupees('');
@@ -222,6 +232,49 @@ export default function ExpensesPage() {
             <Download size={15} />
             <span>Export Tally CSV</span>
           </button>
+        </div>
+      </div>
+
+      {/* Executive OpEx KPI Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #102d47' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Total Invoiced Spend
+          </span>
+          <div className="headline-number" style={{ color: '#102d47', margin: '6px 0 2px' }}>
+            {formatINR(state.opExBills.reduce((s, b) => s + b.totalAmountPaise, 0))}
+          </div>
+          <small style={{ fontSize: '11px', color: '#64748b' }}>Gross operating billings</small>
+        </div>
+
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #25866b' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Disbursed & Paid
+          </span>
+          <div className="headline-number" style={{ color: '#25866b', margin: '6px 0 2px' }}>
+            {formatINR(state.opExBills.reduce((s, b) => s + b.paidAmountPaise, 0))}
+          </div>
+          <small style={{ fontSize: '11px', color: '#25866b', fontWeight: 550 }}>Settled via bank transfers</small>
+        </div>
+
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #ad211d' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Vendor Liabilities
+          </span>
+          <div className="headline-number" style={{ color: '#ad211d', margin: '6px 0 2px' }}>
+            {formatINR(state.opExBills.filter(b => b.status === 'Approved' || b.status === 'Partially Paid').reduce((s, b) => s + (b.netPayablePaise - b.paidAmountPaise), 0))}
+          </div>
+          <small style={{ fontSize: '11px', color: '#ad211d', fontWeight: 600 }}>Approved pending payment</small>
+        </div>
+
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #b49662' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            GST Input Credit & TDS
+          </span>
+          <div className="headline-number" style={{ color: '#102d47', margin: '6px 0 2px' }}>
+            {formatINR(state.opExBills.reduce((s, b) => s + b.gstAmountPaise, 0))}
+          </div>
+          <small style={{ fontSize: '11px', color: '#64748b' }}>Eligible GSTR-2B Input Tax Credit</small>
         </div>
       </div>
 

@@ -667,6 +667,16 @@ export function generateSeedStudents(): { students: Student[]; payments: FeePaym
       status: studentStatus,
     });
 
+    const sampleTimes = ['09:45 AM', '10:30 AM', '11:15 AM', '12:05 PM', '01:40 PM', '02:25 PM', '03:15 PM', '04:10 PM', '04:55 PM'];
+    const sampleBanks = [
+      'SBI Institutional Collection A/c ••••4102',
+      'HDFC Operating A/c ••••8819',
+      'Axis Bank Fee Desk A/c ••••5521',
+      'ICICI Bank SmartPay ••••9932',
+    ];
+    const txnTime = sampleTimes[(i * 3) % sampleTimes.length];
+    const bankAcc = plan.preferredMethod === 'Cash' ? 'Campus Cash Counter 1' : sampleBanks[(i * 2) % sampleBanks.length];
+
     // Create realistic payments
     if (i % 3 === 0) {
       // Full settlement
@@ -675,12 +685,15 @@ export function generateSeedStudents(): { students: Student[]; payments: FeePaym
         studentId: id,
         amountPaise: totalPaise,
         date: '2026-07-20',
+        time: txnTime,
         method: plan.preferredMethod,
         reference: `UTR-PIS26-${id}-01`,
         receiptNo: `RCPT-2026-${String(i).padStart(4, '0')}`,
         verified: true,
         status: 'Verified',
         createdBy: 'Cashier',
+        bankAccount: bankAcc,
+        notes: 'Full academic fee settlement verified via bank mandate sync.',
       });
     } else if (i % 7 === 0) {
       // Bounced cheque test
@@ -689,12 +702,14 @@ export function generateSeedStudents(): { students: Student[]; payments: FeePaym
         studentId: id,
         amountPaise: toPaise(25000),
         date: '2026-08-10',
+        time: '11:45 AM',
         method: 'Cheque',
         reference: `CHQ-${100200 + i}`,
         receiptNo: `RCPT-BOUNCE-${i}`,
         verified: false,
         status: 'Bounced',
         createdBy: 'Cashier',
+        bankAccount: 'SBI Institutional Collection A/c ••••4102',
         notes: 'Cheque returned unpaid: Insufficient Funds',
       });
     } else {
@@ -705,12 +720,15 @@ export function generateSeedStudents(): { students: Student[]; payments: FeePaym
         studentId: id,
         amountPaise: paidPart,
         date: '2026-07-25',
+        time: txnTime,
         method: plan.preferredMethod,
         reference: `UTR-PIS26-${id}-01`,
         receiptNo: `RCPT-2026-${String(i).padStart(4, '0')}`,
         verified: true,
         status: 'Verified',
         createdBy: 'Cashier',
+        bankAccount: bankAcc,
+        notes: 'Semester 1 fee installment cleared.',
       });
 
       if (i % 2 === 0) {
@@ -719,12 +737,15 @@ export function generateSeedStudents(): { students: Student[]; payments: FeePaym
           studentId: id,
           amountPaise: Math.round(totalPaise * 0.25),
           date: '2026-09-15',
+          time: sampleTimes[(i * 5) % sampleTimes.length],
           method: 'UPI',
           reference: `UPI-REF-${id}-02`,
           receiptNo: `RCPT-2026-${String(500 + i).padStart(4, '0')}`,
           verified: true,
           status: 'Verified',
           createdBy: 'Cashier',
+          bankAccount: 'HDFC Operating A/c ••••8819',
+          notes: 'Subsequent installment collected via UPI Gateway QR.',
         });
       }
     }

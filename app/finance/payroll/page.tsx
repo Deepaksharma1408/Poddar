@@ -27,11 +27,13 @@ import { downloadCSV } from '@/lib/finance-portal/security/csv-sanitizer';
 import { Dialog } from '@/components/finance-portal/ui/dialog';
 import { ConfirmDialog } from '@/components/finance-portal/ui/confirm-dialog';
 import { useToast } from '@/components/finance-portal/ui/toast';
+import { useApprovalNotice } from '@/components/finance-portal/ui/approval-notice';
 import type { PayrollRecord, PayrollStatus, Role } from '@/lib/finance-portal/types/finance';
 
 export default function PayrollPage() {
   const { state, dispatch, currentDate } = useFinance();
   const { showToast } = useToast();
+  const { showApprovalNotice } = useApprovalNotice();
   const currentRole = state.settings.currentRole;
 
   const currentPeriod = currentDate.slice(0, 7); // '2026-11'
@@ -172,6 +174,17 @@ export default function PayrollPage() {
     });
 
     showToast('Stage Updated', `${record.employeeName} moved to ${targetStatus}.`, 'info');
+
+    if (targetStatus.startsWith('Pending')) {
+      showApprovalNotice({
+        itemTitle: `${record.employeeName} — Salary Slip (${record.period})`,
+        category: 'Payroll & Salaries',
+        amountPaise: record.netSalaryPaise,
+        reference: record.id,
+        nextApproverTier: targetStatus.replace('Pending ', ''),
+        notes: `Payroll record transitioned to ${targetStatus} by ${currentRole}.`,
+      });
+    }
   };
 
   // Settle / Disburse Payment with unique UTR
@@ -380,6 +393,89 @@ export default function PayrollPage() {
             <FileSpreadsheet size={15} />
             <span>Generate Bank File</span>
           </button>
+        </div>
+      </div>
+
+      {/* Multi-Tier Approval Stepper Pipeline */}
+      <div className="card-surface" style={{ padding: '14px 20px' }}>
+        <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.8px', color: '#83909d', textTransform: 'uppercase', marginBottom: '8px' }}>
+          7-STAGE STATUTORY PAYROLL APPROVAL PIPELINE
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', overflowX: 'auto', gap: '8px' }}>
+          {[
+            { step: '1', label: 'Draft Computed', count: activeRecords.filter(r => r.status === 'Draft').length },
+            { step: '2', label: 'HOD Verified', count: activeRecords.filter(r => r.status === 'Pending HOD Review').length },
+            { step: '3', label: 'HR Checked', count: activeRecords.filter(r => r.status === 'Pending HR Approval').length },
+            { step: '4', label: 'Accounts Audited', count: activeRecords.filter(r => r.status === 'Pending Accounts Approval').length },
+            { step: '5', label: 'Director Approved', count: activeRecords.filter(r => r.status === 'Pending Director Approval' || r.status === 'Approved').length },
+            { step: '6', label: 'Disbursed (Paid)', count: activeRecords.filter(r => r.status === 'Paid').length },
+          ].map((stage, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px' }}>
+              <div
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: stage.count > 0 ? '#102d47' : '#e2e8f0',
+                  color: stage.count > 0 ? '#ffffff' : '#64748b',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                {stage.step}
+              </div>
+              <div>
+                <strong style={{ fontSize: '11px', display: 'block', color: '#102d47' }}>{stage.label}</strong>
+                <small style={{ fontSize: '10px', color: '#64748b' }}>{stage.count} records</small>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Executive Payroll KPI Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #102d47' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Total Gross Earnings
+          </span>
+          <div className="headline-number" style={{ color: '#102d47', margin: '6px 0 2px' }}>
+            {formatINR(activeRecords.reduce((s, r) => s + r.grossPaise, 0))}
+          </div>
+          <small style={{ fontSize: '11px', color: '#64748b' }}>Basic + HRA + DA + Allowances</small>
+        </div>
+
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #25866b' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Net Take-Home Payable
+          </span>
+          <div className="headline-number" style={{ color: '#25866b', margin: '6px 0 2px' }}>
+            {formatINR(activeRecords.reduce((s, r) => s + r.netSalaryPaise, 0))}
+          </div>
+          <small style={{ fontSize: '11px', color: '#25866b', fontWeight: 550 }}>Payable via bank NEFT batch</small>
+        </div>
+
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #ad211d' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Statutory Withholdings
+          </span>
+          <div className="headline-number" style={{ color: '#ad211d', margin: '6px 0 2px' }}>
+            {formatINR(activeRecords.reduce((s, r) => s + (r.pfEmployeePaise + r.esiEmployeePaise + r.tdsDeductionPaise), 0))}
+          </div>
+          <small style={{ fontSize: '11px', color: '#64748b' }}>EPF 12%, ESI 0.75%, TDS</small>
+        </div>
+
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #b49662' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+            Staff on Payroll
+          </span>
+          <div className="headline-number" style={{ color: '#102d47', margin: '6px 0 2px' }}>
+            {activeRecords.length} / {state.employees.filter(e => e.status === 'Active').length}
+          </div>
+          <small style={{ fontSize: '11px', color: '#64748b' }}>Active faculty & support staff</small>
         </div>
       </div>
 

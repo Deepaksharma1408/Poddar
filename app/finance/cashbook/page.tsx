@@ -202,6 +202,45 @@ export default function CashBookPage() {
         </div>
       </div>
 
+      {/* Multi-Bank Account Balances & Status */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+        {state.bankAccounts.map(b => (
+          <div
+            key={b.id}
+            className="card-surface"
+            style={{
+              padding: '16px 18px',
+              borderLeft: '4px solid #102d47',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <strong style={{ fontSize: '13px', color: '#102d47' }}>{b.bankName}</strong>
+                <span style={{ fontSize: '9.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#e8f1fa', color: '#102d47' }}>
+                  {b.accountType}
+                </span>
+              </div>
+              <small style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '2px' }}>
+                A/c {b.accountNumberMasked} · IFSC: {b.ifsc}
+              </small>
+            </div>
+
+            <div style={{ marginTop: '14px' }}>
+              <span style={{ fontSize: '10px', color: '#83909d', textTransform: 'uppercase', fontWeight: 600 }}>Ledger Balance</span>
+              <div className="headline-number" style={{ color: '#102d47', margin: '4px 0 2px' }}>
+                {formatINR(b.currentBalancePaise)}
+              </div>
+              <small style={{ fontSize: '10.5px', color: '#25866b', display: 'block' }}>
+                Reconciled as of {b.lastReconciliationDate}
+              </small>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
         <button

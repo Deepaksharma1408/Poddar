@@ -1,27 +1,31 @@
 // College Finance Portal - Student Fee Ledger & Payment Collection Workspace
-// Premium Executive UI: Waterfall Installment Schedule, EMI Calculator, Statement & Receipt PDFs, Refunds, and Macro KPIs
+// Implements the signature Poddar Connect luxury design system:
+// Workspace Intro, Premium Metric KPI Tiles, Account Directory Ledger, and Deep Navy Account Profile
 
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Search,
-  PlusCircle,
-  FileText,
-  Copy,
-  RotateCcw,
-  CheckCircle,
+  Filter,
+  Plus,
   Download,
   CreditCard,
-  Award,
-  Wallet,
-  Calendar,
-  ShieldCheck,
-  Check,
+  Landmark,
   ArrowUpRight,
-  TrendingUp,
+  ArrowDownLeft,
+  ShieldCheck,
+  RotateCcw,
+  Copy,
+  Check,
+  Clock,
+  Calendar,
+  Eye,
+  FileText,
+  CheckCircle2,
   AlertCircle,
-  Layers,
+  Building2,
+  User,
 } from 'lucide-react';
 import { useFinance } from '@/lib/finance-portal/store/finance-store';
 import { formatINR, formatINRExact, toPaise, paiseInWords } from '@/lib/finance-portal/finance/money';
@@ -29,10 +33,11 @@ import { computeStudentLedger, validateAndRefundFee, StudentLedgerSummary } from
 import { Dialog } from '@/components/finance-portal/ui/dialog';
 import { ConfirmDialog } from '@/components/finance-portal/ui/confirm-dialog';
 import { useToast } from '@/components/finance-portal/ui/toast';
+import { useApprovalNotice } from '@/components/finance-portal/ui/approval-notice';
 import { SimplePDF, triggerPDFDownload, PDF_COLORS } from '@/lib/finance-portal/export/pdf-generator';
 import type { Student, FeePayment } from '@/lib/finance-portal/types/finance';
 
-function StudentAvatar({ name, size = 36 }: { name: string; size?: number }) {
+function PersonBadge({ name, id, prog, sem }: { name: string; id: string; prog: string; sem: number }) {
   const initials = name
     .split(' ')
     .map(p => p[0])
@@ -41,53 +46,86 @@ function StudentAvatar({ name, size = 36 }: { name: string; size?: number }) {
     .join('')
     .toUpperCase();
 
-  // Deterministic soft color badge
-  const colors = [
-    { bg: '#e8f1fa', text: '#102d47', border: '#c8dcf0' },
-    { bg: '#fbf6eb', text: '#8c6d32', border: '#ebd8ad' },
-    { bg: '#edf7f1', text: '#25866b', border: '#b8e4cb' },
-    { bg: '#fbeeed', text: '#ad211d', border: '#f3c2be' },
-  ];
-  const charCode = name.charCodeAt(0) + (name.charCodeAt(name.length - 1) || 0);
-  const theme = colors[charCode % colors.length];
+  return (
+    <div className="person premium-person" style={{ display: 'flex', alignItems: 'center', gap: '11px', textAlign: 'left' }}>
+      <span className="avatar" style={{ width: '35px', height: '35px', borderRadius: '9px', fontSize: '11px', flexShrink: 0 }}>
+        {initials}
+      </span>
+      <div>
+        <strong style={{ fontSize: '12px', display: 'block', color: '#182e46' }}>{name}</strong>
+        <small style={{ fontSize: '10px', color: '#8a99a4' }}>
+          {id} · {prog} (Sem {sem})
+        </small>
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: string }) {
+  const isGood = ['Paid', 'Paid in full', 'On track', 'Verified'].includes(status);
+  const isBad = ['Overdue', 'Payment due', 'Bounced'].includes(status);
+  const className = `status-pill ${isGood ? 'good' : isBad ? 'bad' : 'neutral'}`;
+  return (
+    <span className={className}>
+      <i />
+      {status}
+    </span>
+  );
+}
+
+function PaymentMethodBadge({ method }: { method: FeePayment['method'] }) {
+  const styles: Record<FeePayment['method'], { bg: string; color: string; border: string }> = {
+    UPI: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+    NEFT: { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+    'Bank transfer': { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
+    Cheque: { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
+    Cash: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
+    'Demand Draft': { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
+  };
+
+  const current = styles[method] || { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' };
 
   return (
-    <div
+    <span
       style={{
-        width: `${size}px`,
-        height: `${size}px`,
-        borderRadius: '50%',
-        backgroundColor: theme.bg,
-        color: theme.text,
-        border: `1px solid ${theme.border}`,
-        display: 'grid',
-        placeItems: 'center',
-        fontSize: size >= 40 ? '14px' : '11px',
-        fontWeight: 700,
-        letterSpacing: '0.5px',
-        flexShrink: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '2.5px 8px',
+        borderRadius: '5px',
+        fontSize: '11px',
+        fontWeight: 600,
+        backgroundColor: current.bg,
+        color: current.color,
+        border: `1px solid ${current.border}`,
+        whiteSpace: 'nowrap',
       }}
     >
-      {initials}
-    </div>
+      {method}
+    </span>
   );
 }
 
 export default function FeesPage() {
   const { state, dispatch, currentDate } = useFinance();
   const { showToast } = useToast();
+  const { showApprovalNotice } = useApprovalNotice();
+  const profileRef = useRef<HTMLElement>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [programmeFilter, setProgrammeFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'DUE' | 'PAID' | 'ON_TRACK'>('ALL');
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [filterType, setFilterType] = useState('All students');
+  const [programmeTab, setProgrammeTab] = useState('ALL');
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(state.students[0]?.id || 'PIC26001');
 
   // Modals
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [selectedPaymentForRefund, setSelectedPaymentForRefund] = useState<FeePayment | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedPaymentForDetail, setSelectedPaymentForDetail] = useState<FeePayment | null>(null);
 
   // Payment Form state
+  const [paymentStudentId, setPaymentStudentId] = useState<string>(selectedStudentId);
   const [payAmountRupees, setPayAmountRupees] = useState('');
   const [payMethod, setPayMethod] = useState<FeePayment['method']>('NEFT');
   const [payReference, setPayReference] = useState('');
@@ -100,51 +138,48 @@ export default function FeesPage() {
   // Confirmation dialogs
   const [confirmCashWarningOpen, setConfirmCashWarningOpen] = useState(false);
 
-  // Filtered Students list
+  // Active student object
+  const activeStudent: Student = useMemo(() => {
+    return state.students.find(s => s.id === selectedStudentId) || state.students[0];
+  }, [state.students, selectedStudentId]);
+
+  // Selected student's computed ledger
+  const activeStudentLedger: StudentLedgerSummary = useMemo(() => {
+    return computeStudentLedger(activeStudent, state.feePayments, currentDate);
+  }, [activeStudent, state.feePayments, currentDate]);
+
+  // All student ledgers mapped
+  const allLedgers = useMemo(() => {
+    return state.students.map(student => ({
+      student,
+      ledger: computeStudentLedger(student, state.feePayments, currentDate),
+    }));
+  }, [state.students, state.feePayments, currentDate]);
+
+  // Filtered student list for directory table
   const filteredStudents = useMemo(() => {
-    return state.students.filter(student => {
-      const matchesSearch =
-        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.rollNo.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesProg = programmeFilter === 'ALL' || student.programme === programmeFilter;
+    return allLedgers.filter(({ student: s, ledger: l }) => {
+      const matchSearch =
+        `${s.name} ${s.id} ${s.rollNo} ${s.programme}`.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchProg = programmeTab === 'ALL' || s.programme === programmeTab;
+      if (!matchSearch || !matchProg) return false;
 
-      if (!matchesSearch || !matchesProg) return false;
-
-      if (statusFilter !== 'ALL') {
-        const ledger = computeStudentLedger(student, state.feePayments, currentDate);
-        if (statusFilter === 'DUE' && ledger.dueNowPaise <= 0) return false;
-        if (statusFilter === 'PAID' && ledger.remainingPaise > 0) return false;
-        if (statusFilter === 'ON_TRACK' && (ledger.dueNowPaise > 0 || ledger.remainingPaise === 0)) return false;
-      }
+      if (filterType === 'Due now') return l.dueNowPaise > 0;
+      if (filterType === 'EMI plans') return s.plan.kind === 'EMI';
+      if (filterType === 'Semester plans') return s.plan.kind === 'Semester';
+      if (filterType === 'Fully paid') return l.remainingPaise === 0;
 
       return true;
     });
-  }, [state.students, state.feePayments, searchQuery, programmeFilter, statusFilter, currentDate]);
+  }, [allLedgers, searchQuery, programmeTab, filterType]);
 
-  // Ensure an active student is selected by default
-  useEffect(() => {
-    if (!selectedStudent && state.students.length > 0) {
-      setSelectedStudent(state.students[0]);
-    } else if (selectedStudent && !state.students.some(s => s.id === selectedStudent.id)) {
-      setSelectedStudent(state.students[0] || null);
-    }
-  }, [state.students, selectedStudent]);
-
-  // Selected student's computed ledger
-  const activeStudentLedger: StudentLedgerSummary | null = useMemo(() => {
-    if (!selectedStudent) return null;
-    return computeStudentLedger(selectedStudent, state.feePayments, currentDate);
-  }, [selectedStudent, state.feePayments, currentDate]);
-
-  // Macro Totals across all students for Executive Overview
-  const macroStats = useMemo(() => {
+  // Macro Totals for the 4 top KPI metrics
+  const totals = useMemo(() => {
     let totalCommitmentPaise = 0;
     let dueNowPaise = 0;
     let remainingPaise = 0;
 
-    state.students.forEach(s => {
-      const ledger = computeStudentLedger(s, state.feePayments, currentDate);
+    allLedgers.forEach(({ ledger }) => {
       totalCommitmentPaise += ledger.totalPaise;
       dueNowPaise += ledger.dueNowPaise;
       remainingPaise += ledger.remainingPaise;
@@ -155,16 +190,40 @@ export default function FeesPage() {
       .reduce((sum, p) => sum + (p.amountPaise - (p.refundedPaise || 0)), 0);
 
     return {
-      totalCommitmentPaise,
-      verifiedPaidPaise,
-      dueNowPaise,
-      remainingPaise,
+      total: totalCommitmentPaise,
+      paid: verifiedPaidPaise,
+      due: dueNowPaise,
+      remaining: remainingPaise,
     };
-  }, [state.students, state.feePayments, currentDate]);
+  }, [allLedgers, state.feePayments]);
 
-  // Handle Recording a New Fee Payment
+  const selectStudent = (id: string) => {
+    setSelectedStudentId(id);
+    profileRef.current?.scrollIntoView({
+      block: 'start',
+      behavior: 'smooth',
+    });
+  };
+
+  const openPayment = (studentId: string) => {
+    const student = state.students.find(s => s.id === studentId) || activeStudent;
+    const ledger = computeStudentLedger(student, state.feePayments, currentDate);
+    setPaymentStudentId(student.id);
+    setPayMethod(student.plan.preferredMethod || 'NEFT');
+    setPayAmountRupees(String(ledger.dueNowPaise > 0 ? ledger.dueNowPaise / 100 : ledger.remainingPaise / 100));
+    setPayReference('');
+    setPayNotes('');
+    setPaymentModalOpen(true);
+  };
+
+  const openPaymentDetail = (payment: FeePayment) => {
+    setSelectedPaymentForDetail(payment);
+    setDetailModalOpen(true);
+  };
+
+  // Handle Recording Payment
   const handleRecordPayment = () => {
-    if (!selectedStudent) return;
+    const targetStudent = state.students.find(s => s.id === paymentStudentId) || activeStudent;
     const amountPaise = toPaise(payAmountRupees);
     if (amountPaise <= 0) {
       showToast('Invalid Amount', 'Please enter a valid payment amount', 'error');
@@ -176,7 +235,6 @@ export default function FeesPage() {
       return;
     }
 
-    // Check duplicate reference across all payments
     const isDup = state.feePayments.some(
       p => p.reference.trim().toUpperCase() === payReference.trim().toUpperCase()
     );
@@ -185,21 +243,29 @@ export default function FeesPage() {
       return;
     }
 
-    // Large cash check warning (e.g. ₹10,000+)
     const cashLimitPaise = state.settings.statutory.cashTransactionWarningLimitPaise;
     if (payMethod === 'Cash' && amountPaise >= cashLimitPaise && !confirmCashWarningOpen) {
       setConfirmCashWarningOpen(true);
       return;
     }
 
+    const currentTime = new Date().toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
     const receiptNo = `RCPT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const needsVerification = ['NEFT', 'Cheque', 'Demand Draft', 'Bank transfer'].includes(payMethod);
+    const bankAccount = payMethod === 'Cash'
+      ? 'Campus Cash Counter 1'
+      : 'SBI Institutional Collection A/c ••••4102';
 
     const newPayment: FeePayment = {
-      id: `PAY-${selectedStudent.id}-${Date.now()}`,
-      studentId: selectedStudent.id,
+      id: `PAY-${targetStudent.id}-${Date.now()}`,
+      studentId: targetStudent.id,
       amountPaise,
       date: currentDate,
+      time: currentTime,
       method: payMethod,
       reference: payReference.trim(),
       receiptNo,
@@ -207,35 +273,33 @@ export default function FeesPage() {
       status: needsVerification ? 'Pending Verification' : 'Verified',
       createdBy: state.settings.currentRole,
       notes: payNotes,
+      bankAccount,
     };
 
     dispatch({ type: 'RECORD_FEE_PAYMENT', payment: newPayment });
-    showToast('Payment Recorded', `Receipt ${receiptNo} generated for ${selectedStudent.name}.`, 'success');
+    showToast('Payment Recorded', `Receipt ${receiptNo} generated for ${targetStudent.name}.`, 'success');
 
     setPaymentModalOpen(false);
-    setPayAmountRupees('');
-    setPayReference('');
-    setPayNotes('');
   };
 
-  // Generate PDF Receipt
+  // Generate Receipt PDF
   const handleDownloadReceipt = (payment: FeePayment, isDuplicate = false) => {
-    if (!selectedStudent) return;
+    const student = state.students.find(s => s.id === payment.studentId) || activeStudent;
     const pdf = new SimplePDF();
     const title = isDuplicate ? 'DUPLICATE FEE RECEIPT' : 'STUDENT FEE RECEIPT';
     let y = pdf.drawHeader(state.settings.institutionName, title, 'STUDENT FINANCIAL ACCOUNTS', isDuplicate);
 
-    // Box
     pdf.drawRect(40, y - 50, pdf.pageWidth - 80, 45, {
       fill: PDF_COLORS.lightBg,
       stroke: PDF_COLORS.navy,
       lineWidth: 0.5,
     });
 
+    const timeDisplay = payment.time || '11:30 AM';
     pdf.drawText('RECEIPT DETAILS', 52, y - 10, { font: 'Helvetica-Bold', size: 9, color: PDF_COLORS.navy });
     pdf.drawText(`Receipt No: ${payment.receiptNo}`, 52, y - 22, { font: 'Helvetica-Bold', size: 8 });
-    pdf.drawText(`Date: ${payment.date}`, 52, y - 34, { font: 'Helvetica', size: 8 });
-    pdf.drawText(`Mode: ${payment.method} | Ref: ${payment.reference}`, 52, y - 46, { font: 'Helvetica', size: 8 });
+    pdf.drawText(`Date & Time: ${payment.date} at ${timeDisplay} IST`, 52, y - 34, { font: 'Helvetica', size: 8 });
+    pdf.drawText(`Mode: ${payment.method} | Ref / UTR: ${payment.reference}`, 52, y - 46, { font: 'Helvetica', size: 8 });
 
     pdf.drawText('AMOUNT PAID', pdf.pageWidth - 180, y - 12, { font: 'Helvetica-Bold', size: 8, color: PDF_COLORS.mutedText, align: 'right' });
     pdf.drawText(formatINRExact(payment.amountPaise), pdf.pageWidth - 52, y - 12, { font: 'Helvetica-Bold', size: 14, color: PDF_COLORS.green, align: 'right' });
@@ -247,17 +311,15 @@ export default function FeesPage() {
     });
 
     y -= 70;
-    // Student Info
-    pdf.drawText(`Student Name: ${selectedStudent.name}`, 40, y, { font: 'Helvetica-Bold', size: 9 });
-    pdf.drawText(`Admission ID: ${selectedStudent.id}`, 250, y, { font: 'Helvetica-Bold', size: 9 });
-    pdf.drawText(`Programme: ${selectedStudent.programme} (Semester ${selectedStudent.semester})`, 40, y - 14, { font: 'Helvetica', size: 8.5 });
-    pdf.drawText(`Guardian: ${selectedStudent.guardianName}`, 250, y - 14, { font: 'Helvetica', size: 8.5 });
+    pdf.drawText(`Student Name: ${student.name}`, 40, y, { font: 'Helvetica-Bold', size: 9 });
+    pdf.drawText(`Admission ID: ${student.id}`, 250, y, { font: 'Helvetica-Bold', size: 9 });
+    pdf.drawText(`Programme: ${student.programme} (Semester ${student.semester})`, 40, y - 14, { font: 'Helvetica', size: 8.5 });
+    pdf.drawText(`Guardian: ${student.guardianName}`, 250, y - 14, { font: 'Helvetica', size: 8.5 });
 
     y -= 35;
     pdf.drawLine(40, y, pdf.pageWidth - 40, y, { stroke: PDF_COLORS.border });
     y -= 20;
 
-    // Amount in Words
     pdf.drawText(`Amount in Words: ${paiseInWords(payment.amountPaise)}`, 40, y, { font: 'Helvetica-Oblique', size: 8.5, color: PDF_COLORS.darkSlate });
 
     y -= 60;
@@ -266,12 +328,12 @@ export default function FeesPage() {
 
     pdf.drawFooter(isDuplicate ? 'Duplicate copy issued for student records. Valid without physical stamp.' : undefined);
 
-    const filename = `${isDuplicate ? 'Duplicate-Receipt' : 'Fee-Receipt'}-${selectedStudent.id}-${payment.receiptNo}.pdf`;
+    const filename = `${isDuplicate ? 'Duplicate-Receipt' : 'Fee-Receipt'}-${student.id}-${payment.receiptNo}.pdf`;
     triggerPDFDownload(filename, pdf.output());
     showToast('PDF Generated', `Downloaded ${filename}`, 'info');
   };
 
-  // Generate Comprehensive PDF Statement for Student
+  // Generate Statement PDF
   const handleDownloadStatement = (student: Student, ledger: StudentLedgerSummary) => {
     const pdf = new SimplePDF();
     let y = pdf.drawHeader(
@@ -280,7 +342,6 @@ export default function FeesPage() {
       'OFFICIAL FINANCIAL LEDGER RECORD'
     );
 
-    // Summary Box
     pdf.drawRect(40, y - 62, pdf.pageWidth - 80, 54, {
       fill: PDF_COLORS.lightBg,
       stroke: PDF_COLORS.navy,
@@ -307,8 +368,6 @@ export default function FeesPage() {
     });
 
     y -= 84;
-
-    // Waterfall Schedule Section
     pdf.drawText('ITEMIZED FEE INSTALLMENT SCHEDULE', 40, y, { font: 'Helvetica-Bold', size: 9, color: PDF_COLORS.navy });
     y -= 12;
 
@@ -316,7 +375,6 @@ export default function FeesPage() {
     const widths = [180, 70, 75, 75, 75, 40];
     let startX = 40;
 
-    // Draw table header
     pdf.drawRect(40, y - 16, pdf.pageWidth - 80, 16, { fill: PDF_COLORS.lightBg });
     headers.forEach((h, idx) => {
       const align = idx >= 2 && idx <= 4 ? 'right' : 'left';
@@ -354,7 +412,6 @@ export default function FeesPage() {
 
     y -= 16;
 
-    // Transaction History Section
     const studentPayments = state.feePayments.filter(p => p.studentId === student.id);
     if (studentPayments.length > 0) {
       pdf.drawText('RECORDED TRANSACTIONS & RECEIPTS', 40, y, { font: 'Helvetica-Bold', size: 9, color: PDF_COLORS.navy });
@@ -405,7 +462,7 @@ export default function FeesPage() {
     showToast('Statement Downloaded', `Downloaded ${filename}`, 'info');
   };
 
-  // Generate No Dues Certificate PDF
+  // Generate No Dues Certificate
   const handleDownloadNoDues = (student: Student) => {
     const pdf = new SimplePDF();
     let y = pdf.drawHeader(
@@ -414,7 +471,6 @@ export default function FeesPage() {
       'ACADEMIC SESSION 2026-27'
     );
 
-    // Box
     pdf.drawRect(40, y - 85, pdf.pageWidth - 80, 75, {
       fill: PDF_COLORS.lightBg,
       stroke: PDF_COLORS.green,
@@ -443,7 +499,35 @@ export default function FeesPage() {
     showToast('Certificate Downloaded', `Downloaded ${filename}`, 'success');
   };
 
-  // Handle Refund Submission
+  // Export CSV
+  const handleExportCSV = () => {
+    const rows = [
+      ['Student', 'Admission ID', 'Programme', 'Semester', 'Plan', 'Total Payable', 'Verified Paid', 'Due Now', 'Remaining Balance', 'Preferred Mode'],
+      ...allLedgers.map(({ student: s, ledger: l }) => [
+        s.name,
+        s.id,
+        s.programme,
+        s.semester,
+        s.plan.kind,
+        l.totalPaise / 100,
+        l.paidPaise / 100,
+        l.dueNowPaise / 100,
+        l.remainingPaise / 100,
+        s.plan.preferredMethod,
+      ]),
+    ];
+    const csvContent = rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `student-fee-accounts-${currentDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Ledger Exported', 'Downloaded student-fee-accounts.csv', 'info');
+  };
+
+  // Process Refund
   const handleProcessRefund = () => {
     if (!selectedPaymentForRefund) return;
     const refundPaise = toPaise(refundRupees);
@@ -462,6 +546,14 @@ export default function FeesPage() {
     });
 
     showToast('Refund Processed', `Refund of ${formatINR(refundPaise)} recorded.`, 'success');
+    showApprovalNotice({
+      itemTitle: `Fee Refund — ${activeStudent.name} (${activeStudent.id})`,
+      category: 'Fee Refund',
+      amountPaise: refundPaise,
+      reference: selectedPaymentForRefund.receiptNo,
+      nextApproverTier: 'Accounts Admin / Management',
+      notes: `Concession/Refund justification: ${refundReason}`,
+    });
     setRefundModalOpen(false);
     setSelectedPaymentForRefund(null);
     setRefundRupees('');
@@ -469,837 +561,871 @@ export default function FeesPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-      {/* 1. Header & Title */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+    <div className="premium-workspace">
+      {/* 1. Workspace Intro */}
+      <div className="workspace-intro">
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--navy)', letterSpacing: '-0.3px' }}>
-            Student Fee Accounts & Collection
-          </h1>
-          <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Waterfall installment schedules, collection desk, duplicate receipt generator, and student statement export.
-          </p>
+          <span className="editorial-kicker">FINANCE / STUDENT ACCOUNTS</span>
+          <h2>Every payment.<br /><em>Perfectly accounted for.</em></h2>
+          <p>One clear view of college fees, waterfall installment schedules and the balance ahead.</p>
+        </div>
+        <div className="intro-actions">
+          <span className="secure-note"><ShieldCheck size={15} /> Tuition & Academic Fees · FY 2026–27</span>
+          <button className="button primary" onClick={() => openPayment(activeStudent.id)}>
+            <Plus size={16} /> Record payment
+          </button>
         </div>
       </div>
 
-      {/* 2. Executive Macro KPI Overview Tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-        {/* Total Fee Commitments */}
-        <div className="card-surface" style={{ borderLeft: '4px solid var(--navy)', padding: '18px 20px' }}>
-          <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Total Fee Commitments</span>
-            <Layers size={14} style={{ color: 'var(--navy)' }} />
-          </span>
-          <div className="headline-number" style={{ fontSize: '26px', fontWeight: 700, color: 'var(--navy)', margin: '8px 0 3px' }}>
-            {formatINR(macroStats.totalCommitmentPaise)}
-          </div>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            Annual tuition across 155 students
-          </span>
+      {/* 2. Executive Metric KPI Tiles */}
+      <div className="premium-metrics">
+        <div className="premium-metric">
+          <span>Total fee commitments <ArrowUpRight size={13} /></span>
+          <strong>{formatINR(totals.total)}</strong>
+          <small>Annual tuition across 155 students</small>
         </div>
-
-        {/* Collected & Verified */}
-        <div className="card-surface" style={{ borderLeft: '4px solid var(--green)', padding: '18px 20px' }}>
-          <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Collected & Verified</span>
-            <TrendingUp size={14} style={{ color: 'var(--green)' }} />
-          </span>
-          <div className="headline-number" style={{ fontSize: '26px', fontWeight: 700, color: 'var(--green)', margin: '8px 0 3px' }}>
-            {formatINR(macroStats.verifiedPaidPaise)}
-          </div>
-          <span style={{ fontSize: '11px', color: 'var(--green)' }}>
-            Credited to institutional bank account
-          </span>
+        <div className="premium-metric green">
+          <span>Collected & verified <ArrowUpRight size={13} /></span>
+          <strong>{formatINR(totals.paid)}</strong>
+          <small>Credited to institutional account</small>
         </div>
-
-        {/* Immediate Due Now */}
-        <div className="card-surface" style={{ borderLeft: '4px solid var(--crimson)', padding: '18px 20px' }}>
-          <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Immediate Due Now</span>
-            <AlertCircle size={14} style={{ color: 'var(--crimson)' }} />
-          </span>
-          <div className="headline-number" style={{ fontSize: '26px', fontWeight: 700, color: 'var(--crimson)', margin: '8px 0 3px' }}>
-            {formatINR(macroStats.dueNowPaise)}
-          </div>
-          <span style={{ fontSize: '11px', color: 'var(--crimson)' }}>
-            Scheduled charges due through {currentDate}
-          </span>
+        <div className="premium-metric red">
+          <span>Due now <ArrowUpRight size={13} /></span>
+          <strong>{formatINR(totals.due)}</strong>
+          <small>Scheduled charges due through {currentDate}</small>
         </div>
-
-        {/* Total Remaining Balance */}
-        <div className="card-surface" style={{ borderLeft: '4px solid var(--gold)', padding: '18px 20px' }}>
-          <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Total Outstanding</span>
-            <Wallet size={14} style={{ color: 'var(--gold)' }} />
-          </span>
-          <div className="headline-number" style={{ fontSize: '26px', fontWeight: 700, color: 'var(--gold)', margin: '8px 0 3px' }}>
-            {formatINR(macroStats.remainingPaise)}
-          </div>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            Due now + upcoming installments
-          </span>
+        <div className="premium-metric gold">
+          <span>Total remaining <ArrowUpRight size={13} /></span>
+          <strong>{formatINR(totals.remaining)}</strong>
+          <small>Due now + future installments</small>
         </div>
       </div>
 
-      {/* 3. Main Workspace Grid: Master-Detail Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '350px minmax(0, 1fr)', gap: '22px', alignItems: 'start' }}>
-        {/* Left Column: Student Directory */}
-        <div className="card-surface" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 210px)', overflow: 'hidden' }}>
-          {/* Search, Program Tabs & Filter */}
-          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#ffffff' }}>
-            {/* Search Input */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--bg-subtle)', padding: '7px 11px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-              <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-              <input
-                type="text"
-                placeholder="Search name, roll no, ID..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{ border: 'none', background: 'none', outline: 'none', fontSize: '12px', width: '100%', color: 'var(--text-primary)' }}
-              />
+      {/* 3. Student Fee Accounts Directory Table */}
+      <section className="card account-directory">
+        <div className="premium-card-heading">
+          <div>
+            <h3>Student fee accounts <span className="count-chip">{filteredStudents.length}</span></h3>
+            <p>Select a student to explore their complete financial profile and waterfall schedule.</p>
+          </div>
+          <button className="text-button" onClick={handleExportCSV}>
+            <Download size={14} /> Export ledger
+          </button>
+        </div>
+
+        <div className="premium-list-toolbar" style={{ flexWrap: 'wrap', gap: '10px' }}>
+          <label className="input-search">
+            <Search size={15} />
+            <input
+              placeholder="Find a student, admission ID or programme..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </label>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="filter-select">
+              <Filter size={13} />
+              <select value={filterType} onChange={e => setFilterType(e.target.value)}>
+                {['All students', 'Due now', 'EMI plans', 'Semester plans', 'Fully paid'].map(o => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Programme Selector Pills */}
-            <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '2px' }}>
+            <div style={{ display: 'flex', gap: '4px' }}>
               {['ALL', 'BCA', 'BBA', 'B.Com', 'B.Sc', 'MBA'].map(prog => (
                 <button
                   key={prog}
-                  onClick={() => setProgrammeFilter(prog)}
+                  type="button"
+                  onClick={() => setProgrammeTab(prog)}
                   style={{
-                    padding: '3px 8px',
+                    padding: '4px 9px',
                     fontSize: '11px',
-                    borderRadius: '4px',
-                    border: '1px solid var(--border)',
-                    backgroundColor: programmeFilter === prog ? 'var(--navy)' : 'var(--bg-card)',
-                    color: programmeFilter === prog ? '#ffffff' : 'var(--text-secondary)',
-                    fontWeight: programmeFilter === prog ? 600 : 500,
+                    borderRadius: '5px',
+                    border: '1px solid',
+                    borderColor: programmeTab === prog ? '#102d47' : '#e2e7e2',
+                    backgroundColor: programmeTab === prog ? '#102d47' : '#ffffff',
+                    color: programmeTab === prog ? '#ffffff' : '#5b7482',
+                    fontWeight: programmeTab === prog ? 600 : 500,
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.15s ease',
                   }}
                 >
                   {prog}
                 </button>
               ))}
             </div>
-
-            {/* Status Filter Chips */}
-            <div style={{ display: 'flex', gap: '5px', overflowX: 'auto' }}>
-              {[
-                { id: 'ALL', label: 'All Accounts' },
-                { id: 'DUE', label: 'Due Now' },
-                { id: 'ON_TRACK', label: 'On Track' },
-                { id: 'PAID', label: 'Paid in Full' },
-              ].map(st => (
-                <button
-                  key={st.id}
-                  onClick={() => setStatusFilter(st.id as any)}
-                  style={{
-                    padding: '2px 7px',
-                    fontSize: '10px',
-                    borderRadius: '3px',
-                    border: '1px solid',
-                    borderColor: statusFilter === st.id ? 'var(--gold)' : 'var(--border)',
-                    backgroundColor: statusFilter === st.id ? 'var(--gold-light)' : 'transparent',
-                    color: statusFilter === st.id ? '#8c6d32' : 'var(--text-muted)',
-                    fontWeight: statusFilter === st.id ? 600 : 450,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {st.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Student List Scroll Container */}
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {filteredStudents.length === 0 ? (
-              <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-                No student accounts match your filter criteria.
-              </div>
-            ) : (
-              filteredStudents.map(student => {
-                const isSelected = selectedStudent?.id === student.id;
-                const ledger = computeStudentLedger(student, state.feePayments, currentDate);
-
-                return (
-                  <div
-                    key={student.id}
-                    onClick={() => setSelectedStudent(student)}
-                    style={{
-                      padding: '12px 14px',
-                      borderBottom: '1px solid var(--border)',
-                      backgroundColor: isSelected ? '#f5f8fc' : 'transparent',
-                      cursor: 'pointer',
-                      borderLeft: isSelected ? '4px solid var(--navy)' : '4px solid transparent',
-                      boxShadow: isSelected ? 'inset 2px 0 0 var(--gold)' : 'none',
-                      transition: 'background-color 0.15s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '11px',
-                    }}
-                  >
-                    <StudentAvatar name={student.name} size={34} />
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong style={{ fontSize: '12.5px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {student.name}
-                        </strong>
-                        <span
-                          className="tabular-nums"
-                          style={{
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: ledger.remainingPaise > 0 ? 'var(--navy)' : 'var(--green)',
-                            flexShrink: 0,
-                            marginLeft: '6px',
-                          }}
-                        >
-                          {formatINR(ledger.remainingPaise)}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-                        <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {student.id} · {student.programme} (S{student.semester})
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            fontWeight: 500,
-                            color: ledger.dueNowPaise > 0 ? 'var(--crimson)' : 'var(--text-muted)',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {ledger.dueNowPaise > 0 ? `Due: ${formatINR(ledger.dueNowPaise)}` : ledger.remainingPaise === 0 ? 'Settled' : 'On track'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
           </div>
         </div>
 
-        {/* Right Column: Active Student Account & Ledger Workspace */}
-        {selectedStudent && activeStudentLedger ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', minWidth: 0 }}>
-            {/* LUXURY EXECUTIVE STUDENT PROFILE BANNER */}
-            <div
-              className="card-surface"
-              style={{
-                background: 'linear-gradient(145deg, #102d47 0%, #091e31 100%)',
-                color: '#ffffff',
-                padding: '24px 26px',
-                borderRadius: '12px',
-                border: '1px solid rgba(180, 150, 98, 0.35)',
-                boxShadow: '0 8px 24px rgba(16, 45, 71, 0.12)',
-              }}
-            >
-              {/* Top Row: Avatar, Student Info, Badges and Actions */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.12)',
-                      border: '1px solid rgba(198, 167, 108, 0.6)',
-                      color: '#f7e8c6',
-                      display: 'grid',
-                      placeItems: 'center',
-                      fontSize: '17px',
-                      fontWeight: 700,
-                      letterSpacing: '0.5px',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {selectedStudent.name
-                      .split(' ')
-                      .map(p => p[0])
-                      .slice(0, 2)
-                      .join('')
-                      .toUpperCase()}
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
-                      <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: 0, letterSpacing: '-0.3px' }}>
-                        {selectedStudent.name}
-                      </h2>
-                      <span style={{ fontSize: '11px', backgroundColor: 'rgba(198, 167, 108, 0.25)', color: '#f7e8c6', border: '1px solid rgba(198, 167, 108, 0.4)', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                        {selectedStudent.programme} · Sem {selectedStudent.semester}
-                      </span>
-                      <span style={{ fontSize: '11px', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#cbd5e1', padding: '2px 8px', borderRadius: '4px' }}>
-                        Roll: {selectedStudent.rollNo}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          backgroundColor:
-                            activeStudentLedger.status === 'Paid in full'
-                              ? 'rgba(37, 134, 107, 0.35)'
-                              : activeStudentLedger.dueNowPaise > 0
-                              ? 'rgba(173, 33, 29, 0.35)'
-                              : 'rgba(180, 150, 98, 0.35)',
-                          color:
-                            activeStudentLedger.status === 'Paid in full'
-                              ? '#6ee7b7'
-                              : activeStudentLedger.dueNowPaise > 0
-                              ? '#fca5a5'
-                              : '#fde68a',
-                          border: '1px solid rgba(255, 255, 255, 0.15)',
-                        }}
-                      >
-                        {activeStudentLedger.status === 'Paid in full'
-                          ? 'PAID IN FULL'
-                          : activeStudentLedger.dueNowPaise > 0
-                          ? `DUE NOW: ${formatINR(activeStudentLedger.dueNowPaise)}`
-                          : 'ON TRACK'}
-                      </span>
-                    </div>
-
-                    <p style={{ fontSize: '11.5px', color: '#a0b1c0', marginTop: '6px' }}>
-                      Guardian: <span style={{ color: '#e2e8f0' }}>{selectedStudent.guardianName}</span> ({selectedStudent.guardianPhone}) · Batch: <span style={{ color: '#e2e8f0' }}>{selectedStudent.batch}</span> · Plan: <span style={{ color: '#f7e8c6' }}>{selectedStudent.plan.kind} ({selectedStudent.plan.interestType})</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Header Action Buttons */}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => {
-                      setPayAmountRupees(String(activeStudentLedger.dueNowPaise > 0 ? activeStudentLedger.dueNowPaise / 100 : activeStudentLedger.remainingPaise / 100));
-                      setPaymentModalOpen(true);
-                    }}
-                    style={{
-                      padding: '8px 14px',
-                      backgroundColor: '#b49662',
-                      color: '#102d47',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'background 0.15s ease',
-                    }}
-                  >
-                    <PlusCircle size={15} />
-                    <span>Receive Payment</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleDownloadStatement(selectedStudent, activeStudentLedger)}
-                    style={{
-                      padding: '8px 13px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                      color: '#ffffff',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <Download size={14} />
-                    <span>Statement (PDF)</span>
-                  </button>
-
-                  {activeStudentLedger.remainingPaise === 0 && (
+        <div className="table-wrap" style={{ maxHeight: '380px', overflowY: 'auto' }}>
+          <table role="table" className="premium-table">
+            <thead>
+              <tr role="row">
+                <th>STUDENT / PROGRAMME</th>
+                <th>PAYMENT PLAN</th>
+                <th style={{ textAlign: 'right' }}>TOTAL PAYABLE</th>
+                <th style={{ textAlign: 'right' }}>PAID</th>
+                <th style={{ textAlign: 'right' }}>DUE NOW</th>
+                <th style={{ textAlign: 'right' }}>REMAINING</th>
+                <th>STATUS</th>
+                <th style={{ textAlign: 'center' }}>ACTION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredStudents.slice(0, 30).map(({ student: s, ledger: l }) => (
+                <tr
+                  key={s.id}
+                  className={s.id === activeStudent.id ? 'selected-row' : ''}
+                  onClick={() => selectStudent(s.id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td data-label="Student / Programme">
+                    <PersonBadge name={s.name} id={s.id} prog={s.programme} sem={s.semester} />
+                  </td>
+                  <td data-label="Payment Plan">
+                    <span className={`plan-tag ${s.plan.kind === 'EMI' ? 'emi' : ''}`}>
+                      {s.plan.kind === 'EMI' && <CreditCard size={11} />}
+                      {s.plan.kind}
+                    </span>
+                    <small className="block" style={{ fontSize: '10px', color: '#8a99a4', marginTop: '3px' }}>
+                      {s.plan.preferredMethod}
+                    </small>
+                  </td>
+                  <td data-label="Total Payable" style={{ textAlign: 'right' }} className="tabular-nums">
+                    {formatINR(l.totalPaise)}
+                  </td>
+                  <td data-label="Paid" className="positive tabular-nums" style={{ textAlign: 'right', color: '#25866b', fontWeight: 600 }}>
+                    {formatINR(l.paidPaise)}
+                  </td>
+                  <td data-label="Due Now" className={`tabular-nums ${l.dueNowPaise > 0 ? 'negative' : ''}`} style={{ textAlign: 'right', color: l.dueNowPaise > 0 ? '#ad211d' : '#8a99a4', fontWeight: l.dueNowPaise > 0 ? 600 : 400 }}>
+                    {formatINR(l.dueNowPaise)}
+                  </td>
+                  <td data-label="Remaining" style={{ textAlign: 'right', fontWeight: 600 }} className="tabular-nums">
+                    {formatINR(l.remainingPaise)}
+                  </td>
+                  <td data-label="Status">
+                    <StatusPill status={l.status} />
+                  </td>
+                  <td data-label="Action" style={{ textAlign: 'center' }}>
                     <button
-                      onClick={() => handleDownloadNoDues(selectedStudent)}
-                      style={{
-                        padding: '8px 13px',
-                        backgroundColor: 'rgba(37, 134, 107, 0.3)',
-                        color: '#6ee7b7',
-                        border: '1px solid rgba(110, 231, 183, 0.4)',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
+                      className="account-arrow"
+                      aria-label={`Open ${s.name} ledger`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectStudent(s.id);
                       }}
                     >
-                      <Award size={14} />
-                      <span>No-Dues (PDF)</span>
+                      <ArrowUpRight size={15} />
                     </button>
-                  )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredStudents.length === 0 && (
+            <div style={{ padding: '30px', textAlign: 'center', color: '#8a99a4', fontSize: '12px' }}>
+              No student accounts match your search filter.
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 4. Student Account Profile & Detail Stack */}
+      <div className="student-account-layout">
+        {/* Left: Deep Navy Student Financial Profile */}
+        <section ref={profileRef} className="account-profile">
+          <div className="profile-topline">
+            <span className="editorial-kicker">STUDENT FINANCIAL PROFILE</span>
+            <span className="profile-orbit"><CreditCard size={18} /></span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+            <span
+              style={{
+                width: '45px',
+                height: '45px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#d8c8a8',
+                borderRadius: '10px',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: '15px',
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {activeStudent.name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()}
+            </span>
+            <div>
+              <strong style={{ fontSize: '16px', color: '#f2f2ed', fontWeight: 600, display: 'block' }}>
+                {activeStudent.name}
+              </strong>
+              <small style={{ fontSize: '11px', color: '#8aa3b5' }}>
+                {activeStudent.id} · {activeStudent.programme} (Sem {activeStudent.semester}) · Roll: {activeStudent.rollNo}
+              </small>
+            </div>
+          </div>
+
+          <div className="profile-rule" />
+
+          {activeStudentLedger.remainingPaise === 0 && (
+            <button
+              className="button secondary"
+              style={{ width: '100%', marginBottom: '16px', color: '#6ee7b7', borderColor: 'rgba(110, 231, 183, 0.4)' }}
+              onClick={() => handleDownloadNoDues(activeStudent)}
+            >
+              Download No-dues certificate
+            </button>
+          )}
+
+          <div className="account-balance">
+            <span>Remaining balance</span>
+            <strong>{formatINR(activeStudentLedger.remainingPaise)}</strong>
+            <p>
+              {formatINR(activeStudentLedger.dueNowPaise)} due now <span>·</span> {formatINR(activeStudentLedger.upcomingPaise)} upcoming
+            </p>
+          </div>
+
+          <div className="account-progress">
+            <div style={{ width: `${activeStudentLedger.progressPct}%` }} />
+          </div>
+          <div className="progress-caption">
+            <span>{activeStudentLedger.progressPct}% paid</span>
+            <span>{formatINR(activeStudentLedger.paidPaise)} of {formatINR(activeStudentLedger.totalPaise)}</span>
+          </div>
+
+          <dl className="profile-details">
+            <div>
+              <dt>Guardian</dt>
+              <dd>{activeStudent.guardianName}</dd>
+            </div>
+            <div>
+              <dt>Contact</dt>
+              <dd>{activeStudent.guardianPhone}</dd>
+            </div>
+            <div>
+              <dt>Payment plan</dt>
+              <dd>{activeStudent.plan.kind}</dd>
+            </div>
+            <div>
+              <dt>Preferred mode</dt>
+              <dd>{activeStudent.plan.preferredMethod}</dd>
+            </div>
+            <div>
+              <dt>Academic fee principal</dt>
+              <dd>{formatINR(activeStudent.plan.feePaise)}</dd>
+            </div>
+            {activeStudent.plan.kind === 'EMI' && (
+              <>
+                <div>
+                  <dt>EMI duration</dt>
+                  <dd>{activeStudent.plan.months} months</dd>
                 </div>
+                <div>
+                  <dt>Annual interest</dt>
+                  <dd>{activeStudent.plan.interestRatePct}% ({activeStudent.plan.interestType})</dd>
+                </div>
+              </>
+            )}
+          </dl>
+
+          <button
+            className="button gold-button full-width"
+            onClick={() => openPayment(activeStudent.id)}
+          >
+            <Plus size={15} /> Record student payment
+          </button>
+
+          <button
+            className="profile-link"
+            style={{ width: '100%', cursor: 'pointer', background: 'none', border: 'none' }}
+            onClick={() => handleDownloadStatement(activeStudent, activeStudentLedger)}
+          >
+            <Download size={13} /> Download Statement PDF
+          </button>
+
+          <span className="profile-disclaimer">Poddar International College · Academic session 2026–27</span>
+        </section>
+
+        {/* Right: Installment Schedule & Payment Timeline Cards */}
+        <div className="account-detail-stack">
+          {/* 1. Installment Schedule Card */}
+          <section className="card installment-card">
+            <div className="premium-card-heading">
+              <div>
+                <span className="editorial-kicker">THE ROAD AHEAD</span>
+                <h3>{activeStudent.plan.kind === 'Full payment' ? 'Fee schedule' : 'Installment schedule'}</h3>
               </div>
-
-              {/* Middle Row: Progress Bar */}
-              <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#cbd5e1', marginBottom: '6px' }}>
-                  <span>
-                    Collection Progress: <strong style={{ color: '#f7e8c6' }}>{activeStudentLedger.progressPct}% paid</strong>
-                  </span>
-                  <span className="tabular-nums">
-                    {formatINR(activeStudentLedger.paidPaise)} of {formatINR(activeStudentLedger.totalPaise)}
-                  </span>
-                </div>
-                <div style={{ height: '6px', width: '100%', backgroundColor: 'rgba(255, 255, 255, 0.12)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      height: '100%',
-                      width: `${activeStudentLedger.progressPct}%`,
-                      background: 'linear-gradient(90deg, #b49662, #f7e8c6)',
-                      borderRadius: '3px',
-                      transition: 'width 0.4s ease',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Bottom Row: 4 Metric Tiles with Bold Numbers */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginTop: '18px' }}>
-                {/* Tile 1: Total Annual Fee */}
-                <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '12px 14px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                  <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#a0b1c0', display: 'block' }}>
-                    Total Annual Fee
-                  </span>
-                  <div className="tabular-nums" style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: '4px 0 2px' }}>
-                    {formatINR(activeStudentLedger.totalPaise)}
-                  </div>
-                  <span style={{ fontSize: '10px', color: '#7893a9' }}>Tuition & Base Fees</span>
-                </div>
-
-                {/* Tile 2: Verified Paid */}
-                <div style={{ backgroundColor: 'rgba(37, 134, 107, 0.12)', padding: '12px 14px', borderRadius: '8px', border: '1px solid rgba(110, 231, 183, 0.2)' }}>
-                  <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#6ee7b7', display: 'block' }}>
-                    Verified Paid
-                  </span>
-                  <div className="tabular-nums" style={{ fontSize: '20px', fontWeight: 700, color: '#6ee7b7', margin: '4px 0 2px' }}>
-                    {formatINR(activeStudentLedger.paidPaise)}
-                  </div>
-                  <span style={{ fontSize: '10px', color: 'rgba(110, 231, 183, 0.8)' }}>Allocated & Credited</span>
-                </div>
-
-                {/* Tile 3: Immediate Due */}
-                <div style={{ backgroundColor: 'rgba(173, 33, 29, 0.12)', padding: '12px 14px', borderRadius: '8px', border: '1px solid rgba(252, 165, 165, 0.2)' }}>
-                  <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#fca5a5', display: 'block' }}>
-                    Immediate Due
-                  </span>
-                  <div className="tabular-nums" style={{ fontSize: '20px', fontWeight: 700, color: '#fca5a5', margin: '4px 0 2px' }}>
-                    {formatINR(activeStudentLedger.dueNowPaise)}
-                  </div>
-                  <span style={{ fontSize: '10px', color: 'rgba(252, 165, 165, 0.8)' }}>Due As of {currentDate}</span>
-                </div>
-
-                {/* Tile 4: Remaining Balance */}
-                <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '12px 14px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                  <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#f7e8c6', display: 'block' }}>
-                    Remaining Balance
-                  </span>
-                  <div className="tabular-nums" style={{ fontSize: '20px', fontWeight: 700, color: '#f7e8c6', margin: '4px 0 2px' }}>
-                    {formatINR(activeStudentLedger.remainingPaise)}
-                  </div>
-                  <span style={{ fontSize: '10px', color: '#7893a9' }}>Future installments</span>
-                </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  className="button secondary small"
+                  onClick={() => handleDownloadStatement(activeStudent, activeStudentLedger)}
+                >
+                  <Download size={13} /> Statement PDF
+                </button>
               </div>
             </div>
 
-            {/* WATERFALL INSTALLMENT SCHEDULE TABLE */}
-            <div className="card-surface" style={{ padding: '20px 22px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                <div>
-                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--navy)' }}>
-                    Itemized Waterfall Fee Schedule
-                  </h3>
-                  <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Collections automatically satisfy oldest installments first. Final installment carries rounding adjustment.
-                  </p>
-                </div>
+            <div className="schedule-summary">
+              <span>
+                <i className="green-dot" />
+                {activeStudentLedger.schedule.filter(c => c.status === 'Paid').length} paid
+              </span>
+              <span>
+                <i className="red-dot" />
+                {activeStudentLedger.schedule.filter(c => c.status === 'Overdue').length} overdue
+              </span>
+              <span>
+                <i className="gold-dot" />
+                {activeStudentLedger.schedule.filter(c => c.status === 'Upcoming').length} upcoming
+              </span>
+              <span className="schedule-note">Payments allocate oldest charge first</span>
+            </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--green)' }} />
-                    {activeStudentLedger.schedule.filter(c => c.status === 'Paid').length} Paid
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--crimson)' }} />
-                    {activeStudentLedger.schedule.filter(c => c.status === 'Overdue').length} Overdue
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--gold)' }} />
-                    {activeStudentLedger.schedule.filter(c => c.status === 'Upcoming').length} Upcoming
-                  </span>
-                </div>
+            <div className="table-wrap schedule-scroll" role="region" aria-label="Scrollable installment schedule" tabIndex={0}>
+              <table role="table" className="premium-table">
+                <thead>
+                  <tr role="row">
+                    <th>INSTALLMENT</th>
+                    <th>DUE DATE</th>
+                    <th style={{ textAlign: 'right' }}>AMOUNT</th>
+                    <th style={{ textAlign: 'right' }}>PAID</th>
+                    <th style={{ textAlign: 'right' }}>OUTSTANDING</th>
+                    <th>STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeStudentLedger.schedule.map((c, i) => (
+                    <tr role="row" key={c.id}>
+                      <td data-label="Installment">
+                        <span className="schedule-number">{String(i + 1).padStart(2, '0')}</span>
+                        {c.label}
+                      </td>
+                      <td data-label="Due Date">{c.date}</td>
+                      <td data-label="Amount" style={{ textAlign: 'right' }} className="tabular-nums">
+                        {formatINR(c.amountPaise)}
+                      </td>
+                      <td data-label="Paid" className="positive tabular-nums" style={{ textAlign: 'right', color: '#25866b', fontWeight: 600 }}>
+                        {formatINR(c.paidPaise)}
+                      </td>
+                      <td data-label="Outstanding" style={{ textAlign: 'right' }} className="tabular-nums">
+                        {formatINR(c.outstandingPaise)}
+                      </td>
+                      <td data-label="Status">
+                        <StatusPill status={c.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* 2. Transaction & Receipt History Card */}
+          <section className="card">
+            <div className="premium-card-heading" style={{ flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <span className="editorial-kicker">VERIFIED SETTLEMENTS & AUDIT LOG</span>
+                <h3>Transaction & Receipt History</h3>
+                <p>Click any transaction row to inspect complete payment details, mode, date-time, and download receipts.</p>
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                  {state.feePayments.filter(p => p.studentId === activeStudent.id).length}{' '}
+                  {state.feePayments.filter(p => p.studentId === activeStudent.id).length === 1 ? 'Receipt' : 'Receipts'}
+                </span>
+                <button
+                  type="button"
+                  className="button secondary small"
+                  onClick={() => openPayment(activeStudent.id)}
+                >
+                  <Plus size={13} /> Collect payment
+                </button>
+              </div>
+            </div>
 
-              <div className="table-container" style={{ overflowX: 'auto', width: '100%' }}>
-                <table className="data-table responsive-table" style={{ width: '100%', tableLayout: 'auto' }}>
+            {state.feePayments.filter(p => p.studentId === activeStudent.id).length > 0 ? (
+              <div className="table-wrap">
+                <table role="table" className="premium-table">
                   <thead>
-                    <tr>
-                      <th style={{ width: '26%', textAlign: 'left' }}>Installment / Charge Head</th>
-                      <th style={{ width: '15%', textAlign: 'left' }}>Due Date</th>
-                      <th style={{ width: '16%', textAlign: 'right' }}>Scheduled Amount</th>
-                      <th style={{ width: '16%', textAlign: 'right' }}>Allocated Paid</th>
-                      <th style={{ width: '15%', textAlign: 'right' }}>Outstanding</th>
-                      <th style={{ width: '12%', textAlign: 'center' }}>Status</th>
+                    <tr role="row">
+                      <th>RECEIPT NO</th>
+                      <th>DATE & TIME</th>
+                      <th>PAYMENT MODE</th>
+                      <th>REFERENCE / UTR</th>
+                      <th style={{ textAlign: 'right' }}>AMOUNT</th>
+                      <th>STATUS</th>
+                      <th style={{ textAlign: 'center' }}>ACTION</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {activeStudentLedger.schedule.map(c => (
-                      <tr key={c.id}>
-                        <td data-label="Installment Head">
-                          <strong style={{ color: 'var(--text-primary)', fontSize: '12.5px' }}>{c.label}</strong>
-                        </td>
-                        <td data-label="Due Date" style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          {c.date}
-                        </td>
-                        <td data-label="Amount" style={{ textAlign: 'right', fontWeight: 600 }} className="tabular-nums">
-                          {formatINR(c.amountPaise)}
-                        </td>
-                        <td data-label="Paid" style={{ textAlign: 'right', color: 'var(--green)', fontWeight: 600 }} className="tabular-nums">
-                          {formatINR(c.paidPaise)}
-                        </td>
-                        <td data-label="Outstanding" style={{ textAlign: 'right', color: c.outstandingPaise > 0 ? 'var(--navy)' : 'var(--text-muted)', fontWeight: 600 }} className="tabular-nums">
-                          {formatINR(c.outstandingPaise)}
-                        </td>
-                        <td data-label="Status" style={{ textAlign: 'center' }}>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 600,
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              backgroundColor:
-                                c.status === 'Paid'
-                                  ? 'var(--green-light)'
-                                  : c.status === 'Overdue'
-                                  ? 'var(--crimson-light)'
-                                  : 'var(--navy-light)',
-                              color:
-                                c.status === 'Paid'
-                                  ? 'var(--green)'
-                                  : c.status === 'Overdue'
-                                  ? 'var(--crimson)'
-                                  : 'var(--navy)',
-                              display: 'inline-block',
-                            }}
-                          >
-                            {c.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {state.feePayments
+                      .filter(p => p.studentId === activeStudent.id)
+                      .slice()
+                      .reverse()
+                      .map(p => (
+                        <tr
+                          key={p.id}
+                          onClick={() => openPaymentDetail(p)}
+                          style={{ cursor: 'pointer', transition: 'background-color 0.15s' }}
+                          className="hover-row"
+                          title="Click to view full payment details"
+                        >
+                          <td data-label="Receipt No">
+                            <strong style={{ color: '#102d47', fontSize: '12px' }}>{p.receiptNo}</strong>
+                          </td>
+                          <td data-label="Date & Time">
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#1e293b' }}>
+                              {p.date}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <Clock size={11} /> {p.time || '11:30 AM'} IST
+                            </div>
+                          </td>
+                          <td data-label="Payment Mode">
+                            <PaymentMethodBadge method={p.method} />
+                          </td>
+                          <td data-label="Reference / UTR" style={{ fontFamily: 'monospace', fontSize: '11px', color: '#475569' }}>
+                            {p.reference}
+                          </td>
+                          <td data-label="Amount" style={{ textAlign: 'right' }} className="tabular-nums">
+                            <strong style={{ color: '#25866b', fontSize: '13px' }}>{formatINR(p.amountPaise)}</strong>
+                            {p.refundedPaise ? (
+                              <small style={{ display: 'block', color: '#ad211d', fontSize: '10px' }}>
+                                Refunded: {formatINR(p.refundedPaise)}
+                              </small>
+                            ) : null}
+                          </td>
+                          <td data-label="Status">
+                            <StatusPill status={p.status} />
+                          </td>
+                          <td data-label="Action" style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <button
+                                type="button"
+                                className="button secondary small"
+                                style={{ padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                onClick={() => openPaymentDetail(p)}
+                                title="View full payment details"
+                              >
+                                <Eye size={12} />
+                                <span>Details</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="icon-button"
+                                title="Download Receipt PDF"
+                                onClick={() => handleDownloadReceipt(p, false)}
+                              >
+                                <Download size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-
-            {/* TRANSACTION & RECEIPT HISTORY TABLE */}
-            <div className="card-surface" style={{ padding: '20px 22px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                <div>
-                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--navy)' }}>
-                    Transaction & Receipt History
-                  </h3>
-                  <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Complete audit of receipts, payment modes, UTR references, verification flags, and refund controls.
-                  </p>
-                </div>
-              </div>
-
-              <div className="table-container" style={{ overflowX: 'auto', width: '100%' }}>
-                {state.feePayments.filter(p => p.studentId === selectedStudent.id).length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-                    No fee payments recorded yet for this student account.
-                  </div>
-                ) : (
-                  <table className="data-table responsive-table" style={{ width: '100%', tableLayout: 'auto' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: '18%', textAlign: 'left' }}>Receipt No</th>
-                        <th style={{ width: '13%', textAlign: 'left' }}>Date</th>
-                        <th style={{ width: '25%', textAlign: 'left' }}>Method & Reference</th>
-                        <th style={{ width: '16%', textAlign: 'right' }}>Amount Paid</th>
-                        <th style={{ width: '13%', textAlign: 'center' }}>Status</th>
-                        <th style={{ width: '15%', textAlign: 'right' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {state.feePayments
-                        .filter(p => p.studentId === selectedStudent.id)
-                        .map(p => (
-                          <tr key={p.id}>
-                            <td data-label="Receipt No">
-                              <strong style={{ color: 'var(--navy)', fontSize: '12px' }}>{p.receiptNo}</strong>
-                            </td>
-                            <td data-label="Date" style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                              {p.date}
-                            </td>
-                            <td data-label="Method" style={{ fontSize: '12px' }}>
-                              <span>{p.method}</span>
-                              <span style={{ display: 'block', fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                                {p.reference}
-                              </span>
-                            </td>
-                            <td data-label="Amount" style={{ textAlign: 'right', fontWeight: 700 }} className="tabular-nums">
-                              <span style={{ color: 'var(--text-primary)', fontSize: '13px' }}>{formatINR(p.amountPaise)}</span>
-                              {p.refundedPaise ? (
-                                <span style={{ display: 'block', fontSize: '10px', color: 'var(--crimson)' }}>
-                                  (Refunded: {formatINR(p.refundedPaise)})
-                                </span>
-                              ) : null}
-                            </td>
-                            <td data-label="Status" style={{ textAlign: 'center' }}>
-                              <span
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  padding: '3px 8px',
-                                  borderRadius: '4px',
-                                  backgroundColor:
-                                    p.status === 'Verified'
-                                      ? 'var(--green-light)'
-                                      : p.status === 'Bounced'
-                                      ? 'var(--crimson-light)'
-                                      : 'var(--gold-light)',
-                                  color:
-                                    p.status === 'Verified'
-                                      ? 'var(--green)'
-                                      : p.status === 'Bounced'
-                                      ? 'var(--crimson)'
-                                      : '#8c6d32',
-                                  display: 'inline-block',
-                                }}
-                              >
-                                {p.status}
-                              </span>
-                            </td>
-                            <td data-label="Actions" style={{ textAlign: 'right' }}>
-                              <div style={{ display: 'inline-flex', gap: '5px' }}>
-                                <button
-                                  onClick={() => handleDownloadReceipt(p, false)}
-                                  title="Download Original PDF Receipt"
-                                  style={{
-                                    padding: '4px 8px',
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    backgroundColor: 'var(--navy-light)',
-                                    color: 'var(--navy)',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
-                                  }}
-                                >
-                                  <Download size={11} />
-                                  <span>PDF</span>
-                                </button>
-                                <button
-                                  onClick={() => handleDownloadReceipt(p, true)}
-                                  title="Download Duplicate Receipt"
-                                  style={{
-                                    padding: '4px 8px',
-                                    fontSize: '11px',
-                                    backgroundColor: 'var(--bg-subtle)',
-                                    color: 'var(--text-secondary)',
-                                    border: '1px solid var(--border)',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
-                                  }}
-                                >
-                                  <Copy size={11} />
-                                  <span>Copy</span>
-                                </button>
-                                {p.status === 'Verified' && (!p.refundedPaise || p.refundedPaise < p.amountPaise) && (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedPaymentForRefund(p);
-                                      setRefundRupees(String((p.amountPaise - (p.refundedPaise || 0)) / 100));
-                                      setRefundModalOpen(true);
-                                    }}
-                                    title="Process Fee Refund"
-                                    style={{
-                                      padding: '4px 8px',
-                                      fontSize: '11px',
-                                      backgroundColor: 'var(--crimson-light)',
-                                      color: 'var(--crimson)',
-                                      border: 'none',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '3px',
-                                    }}
-                                  >
-                                    <RotateCcw size={11} />
-                                    <span>Refund</span>
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="card-surface" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-            <Wallet size={36} style={{ color: 'var(--gold)', marginBottom: '12px' }} />
-            <strong style={{ fontSize: '15px', color: 'var(--navy)' }}>No Student Selected</strong>
-            <p style={{ fontSize: '12px', marginTop: '4px' }}>Select an account from the left directory to view the waterfall schedule and record payments.</p>
-          </div>
-        )}
+            ) : (
+              <p className="empty-state" style={{ padding: '24px', textAlign: 'center', color: '#8a99a4', fontSize: '12px' }}>
+                No payments recorded yet for this student account.
+              </p>
+            )}
+          </section>
+        </div>
       </div>
 
-      {/* MODAL 1: Receive Fee Payment */}
-      <Dialog open={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title="Record Fee Collection">
-        {selectedStudent && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Recording fee receipt for <strong>{selectedStudent.name}</strong> ({selectedStudent.id})
-            </p>
+      {/* 5. Footnote */}
+      <div className="finance-footnote">
+        <ShieldCheck size={15} />
+        <span>
+          As of {currentDate}. Due now is part of the remaining balance. EMI is a payment plan; NEFT, UPI, cash and cheque are payment methods.
+        </span>
+      </div>
+
+      {/* MODAL 1: Record Student Payment */}
+      <Dialog open={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title="Record a student payment">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <p style={{ fontSize: '12px', color: '#64748b' }}>
+            Recording payment receipt for <strong>{activeStudent.name}</strong> ({activeStudent.id})
+          </p>
+
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
+              Amount (₹)*
+            </label>
+            <input
+              type="number"
+              value={payAmountRupees}
+              onChange={e => setPayAmountRupees(e.target.value)}
+              placeholder="0.00"
+              style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
+                Payment Method*
+              </label>
+              <select
+                value={payMethod}
+                onChange={e => setPayMethod(e.target.value as FeePayment['method'])}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', backgroundColor: '#ffffff' }}
+              >
+                <option value="NEFT">NEFT</option>
+                <option value="UPI">UPI</option>
+                <option value="Bank transfer">Bank Transfer</option>
+                <option value="Cheque">Cheque</option>
+                <option value="Cash">Cash</option>
+                <option value="Demand Draft">Demand Draft</option>
+              </select>
+            </div>
 
             <div>
-              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
-                Amount to Collect (INR)*
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
+                UTR / Receipt Reference*
               </label>
               <input
-                type="number"
-                value={payAmountRupees}
-                onChange={e => setPayAmountRupees(e.target.value)}
-                placeholder="Enter amount in Rupees"
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '14px' }}
+                type="text"
+                value={payReference}
+                onChange={e => setPayReference(e.target.value)}
+                placeholder="Unique reference"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
               />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div>
-                <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
-                  Payment Mode*
-                </label>
-                <select
-                  value={payMethod}
-                  onChange={e => setPayMethod(e.target.value as FeePayment['method'])}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '12px', backgroundColor: 'var(--bg-card)' }}
-                >
-                  <option value="NEFT">NEFT</option>
-                  <option value="UPI">UPI</option>
-                  <option value="Bank transfer">Bank Transfer</option>
-                  <option value="Cheque">Cheque</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Demand Draft">Demand Draft</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
-                  UTR / Cheque Reference*
-                </label>
-                <input
-                  type="text"
-                  value={payReference}
-                  onChange={e => setPayReference(e.target.value)}
-                  placeholder="Unique bank reference"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '12px' }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
-                Internal Notes / Ledger Remarks
-              </label>
-              <textarea
-                value={payNotes}
-                onChange={e => setPayNotes(e.target.value)}
-                placeholder="Optional remarks"
-                rows={2}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '12px' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button
-                onClick={() => setPaymentModalOpen(false)}
-                style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRecordPayment}
-                style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: 'none', backgroundColor: 'var(--navy)', color: '#ffffff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Confirm & Generate Receipt
-              </button>
             </div>
           </div>
-        )}
+
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
+              Internal Notes / Ledger Remarks
+            </label>
+            <textarea
+              value={payNotes}
+              onChange={e => setPayNotes(e.target.value)}
+              placeholder="Optional remarks"
+              rows={2}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <button
+              onClick={() => setPaymentModalOpen(false)}
+              className="button secondary"
+              style={{ padding: '8px 14px', fontSize: '12px' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRecordPayment}
+              className="button primary"
+              style={{ padding: '8px 16px', fontSize: '12px' }}
+            >
+              Save Payment
+            </button>
+          </div>
+        </div>
       </Dialog>
 
       {/* MODAL 2: Fee Refund */}
       <Dialog open={refundModalOpen} onClose={() => setRefundModalOpen(false)} title="Process Student Fee Refund">
         {selectedPaymentForRefund && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <p style={{ fontSize: '12px', color: '#64748b' }}>
               Refunding from verified Receipt <strong>{selectedPaymentForRefund.receiptNo}</strong> (Total: {formatINR(selectedPaymentForRefund.amountPaise)})
             </p>
 
             <div>
-              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
-                Refund Amount (INR)* (Capped at available balance)
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
+                Refund Amount (₹)*
               </label>
               <input
                 type="number"
                 value={refundRupees}
                 onChange={e => setRefundRupees(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '14px' }}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
               />
             </div>
 
             <div>
-              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
-                Mandatory Refund Justification / Approval Notes*
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
+                Mandatory Refund Justification*
               </label>
               <textarea
                 value={refundReason}
                 onChange={e => setRefundReason(e.target.value)}
                 placeholder="Reason for concession, course withdrawal, or excess credit refund"
                 rows={3}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '12px' }}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
               />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
               <button
                 onClick={() => setRefundModalOpen(false)}
-                style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                className="button secondary"
+                style={{ padding: '8px 14px', fontSize: '12px' }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleProcessRefund}
-                style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: 'none', backgroundColor: 'var(--crimson)', color: '#ffffff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                className="button primary"
+                style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: '#ad211d' }}
               >
                 Approve & Process Refund
               </button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* MODAL 3: Fee Payment & Receipt Details Popup */}
+      <Dialog
+        open={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        title="Fee Payment & Receipt Transaction Details"
+        subtitle="Institutional collection desk verification & transaction audit record"
+        maxWidth="680px"
+      >
+        {selectedPaymentForDetail && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* 1. Hero Amount & Status Card */}
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderLeft: '4px solid #102d47',
+                borderRadius: '8px',
+                padding: '16px 20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
+                  RECEIPT #{selectedPaymentForDetail.receiptNo}
+                </div>
+                <div style={{ fontSize: '26px', fontWeight: 700, color: '#102d47', margin: '4px 0 2px' }} className="headline-number">
+                  {formatINRExact(selectedPaymentForDetail.amountPaise)}
+                </div>
+                <div style={{ fontSize: '11.5px', color: '#475569', fontStyle: 'italic' }}>
+                  {paiseInWords(selectedPaymentForDetail.amountPaise)}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <StatusPill status={selectedPaymentForDetail.status} />
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                  <Calendar size={12} /> {selectedPaymentForDetail.date}
+                  <span>·</span>
+                  <Clock size={12} /> {selectedPaymentForDetail.time || '11:30 AM'} IST
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Transaction & Payment Mode Grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '12px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '16px',
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>
+                  Mode / Method of Payment
+                </span>
+                <div style={{ marginTop: '5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <PaymentMethodBadge method={selectedPaymentForDetail.method} />
+                  <span style={{ fontSize: '11.5px', color: '#334155', fontWeight: 500 }}>
+                    {selectedPaymentForDetail.method === 'UPI' && 'UPI Virtual Payment Address'}
+                    {selectedPaymentForDetail.method === 'NEFT' && 'National Electronic Funds Transfer'}
+                    {selectedPaymentForDetail.method === 'Bank transfer' && 'RTGS / IMPS Bank Transfer'}
+                    {selectedPaymentForDetail.method === 'Cheque' && 'Clearing Cheque Deposit'}
+                    {selectedPaymentForDetail.method === 'Cash' && 'Physical Cash Counter Receipt'}
+                    {selectedPaymentForDetail.method === 'Demand Draft' && 'Bank Demand Draft'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>
+                  Transaction Date & Time
+                </span>
+                <strong style={{ fontSize: '12.5px', color: '#1e293b', display: 'block', marginTop: '4px' }}>
+                  {selectedPaymentForDetail.date} at {selectedPaymentForDetail.time || '11:30 AM'} IST
+                </strong>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>
+                  UTR / Reference / Instrument No.
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                  <code style={{ fontSize: '12px', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', color: '#0f172a' }}>
+                    {selectedPaymentForDetail.reference}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedPaymentForDetail.reference);
+                      showToast('Copied', 'Reference number copied to clipboard', 'info');
+                    }}
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b', padding: '2px' }}
+                    title="Copy reference number"
+                  >
+                    <Copy size={13} />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>
+                  Deposited Bank Account
+                </span>
+                <strong style={{ fontSize: '12px', color: '#1e293b', display: 'block', marginTop: '4px' }}>
+                  {selectedPaymentForDetail.bankAccount || (selectedPaymentForDetail.method === 'Cash' ? 'Campus Cash Counter 1' : 'SBI Institutional Collection A/c ••••4102')}
+                </strong>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>
+                  Recorded / Collected By
+                </span>
+                <span style={{ fontSize: '12px', color: '#334155', display: 'block', marginTop: '4px' }}>
+                  {selectedPaymentForDetail.createdBy} (Poddar Finance Counter)
+                </span>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>
+                  Settlement Verification
+                </span>
+                <span style={{ fontSize: '12px', color: selectedPaymentForDetail.verified ? '#15803d' : '#b45309', fontWeight: 600, display: 'block', marginTop: '4px' }}>
+                  {selectedPaymentForDetail.verified ? '✓ Verified in Bank Reconciliation' : '⏳ Pending Bank Realization'}
+                </span>
+              </div>
+            </div>
+
+            {/* 3. Student Profile Context */}
+            {(() => {
+              const student = state.students.find(s => s.id === selectedPaymentForDetail.studentId) || activeStudent;
+              return (
+                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px 16px' }}>
+                  <div style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    STUDENT & ENROLLMENT CONTEXT
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Student Name:</span>{' '}
+                      <strong style={{ color: '#0f172a' }}>{student.name}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Admission ID:</span>{' '}
+                      <strong style={{ color: '#0f172a' }}>{student.id}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Roll Number:</span>{' '}
+                      <span style={{ color: '#0f172a' }}>{student.rollNo}</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Programme:</span>{' '}
+                      <span style={{ color: '#0f172a' }}>{student.programme} (Sem {student.semester})</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Guardian:</span>{' '}
+                      <span style={{ color: '#0f172a' }}>{student.guardianName} ({student.guardianPhone})</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Payment Plan:</span>{' '}
+                      <span style={{ color: '#0f172a' }}>{student.plan.kind}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 4. Notes if available */}
+            {selectedPaymentForDetail.notes && (
+              <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px 14px', fontSize: '11.5px', color: '#334155' }}>
+                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '2px' }}>Cashier / Officer Notes:</strong>
+                {selectedPaymentForDetail.notes}
+              </div>
+            )}
+
+            {/* 5. Refund notice if refunded */}
+            {selectedPaymentForDetail.refundedPaise ? (
+              <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '10px 14px', fontSize: '11.5px', color: '#991b1b' }}>
+                <strong>Fee Refund Recorded:</strong> {formatINR(selectedPaymentForDetail.refundedPaise)} was refunded.
+                {selectedPaymentForDetail.refundReason && <span> Reason: {selectedPaymentForDetail.refundReason}</span>}
+              </div>
+            ) : null}
+
+            {/* 6. Action Buttons Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="button primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => handleDownloadReceipt(selectedPaymentForDetail, false)}
+                >
+                  <Download size={14} />
+                  <span>Download Receipt (PDF)</span>
+                </button>
+                <button
+                  type="button"
+                  className="button secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => handleDownloadReceipt(selectedPaymentForDetail, true)}
+                >
+                  <Copy size={14} />
+                  <span>Duplicate Copy</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => {
+                    const student = state.students.find(s => s.id === selectedPaymentForDetail.studentId) || activeStudent;
+                    const text = `PODDAR INTERNATIONAL COLLEGE - FEE RECEIPT
+Receipt No: ${selectedPaymentForDetail.receiptNo}
+Student: ${student.name} (${student.id})
+Programme: ${student.programme} (Sem ${student.semester})
+Date & Time: ${selectedPaymentForDetail.date} at ${selectedPaymentForDetail.time || '11:30 AM'} IST
+Payment Mode: ${selectedPaymentForDetail.method}
+Reference / UTR: ${selectedPaymentForDetail.reference}
+Amount: ${formatINRExact(selectedPaymentForDetail.amountPaise)} (${paiseInWords(selectedPaymentForDetail.amountPaise)})
+Status: ${selectedPaymentForDetail.status}
+Account: ${selectedPaymentForDetail.bankAccount || 'SBI Collection A/c ••••4102'}`;
+                    navigator.clipboard.writeText(text);
+                    showToast('Copied', 'Full receipt details copied to clipboard', 'success');
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <Copy size={13} />
+                  <span>Copy Details</span>
+                </button>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setDetailModalOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1314,7 +1440,7 @@ export default function FeesPage() {
           handleRecordPayment();
         }}
         title="High Cash Transaction Warning"
-        description={`This transaction of ${payAmountRupees} INR exceeds the standard cash threshold of ₹${(state.settings.statutory.cashTransactionWarningLimitPaise / 100).toLocaleString('en-IN')}. Are you sure you wish to record this as physical cash rather than digital bank transfer?`}
+        description={`This transaction of ₹${payAmountRupees} exceeds the standard cash threshold of ₹${(state.settings.statutory.cashTransactionWarningLimitPaise / 100).toLocaleString('en-IN')}. Are you sure you wish to record this as physical cash?`}
         confirmLabel="Proceed with Cash"
         isDestructive={false}
       />

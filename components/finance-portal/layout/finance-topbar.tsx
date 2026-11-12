@@ -14,6 +14,7 @@ import {
   Shield,
   Clock,
   Sparkles,
+  CheckSquare,
 } from 'lucide-react';
 import { useFinance } from '@/lib/finance-portal/store/finance-store';
 import { ALL_ROLES } from '@/lib/finance-portal/security/rbac';
@@ -21,6 +22,7 @@ import type { Role } from '@/lib/finance-portal/types/finance';
 
 const ROUTE_NAMES: Record<string, string> = {
   '/finance/dashboard': 'Dashboard',
+  '/finance/approvals': 'Approval Inbox',
   '/finance/fees': 'Fees & Collections',
   '/finance/dues': 'Defaulters & Dues',
   '/finance/scholarships': 'Scholarships',
@@ -30,10 +32,13 @@ const ROUTE_NAMES: Record<string, string> = {
   '/finance/employees': 'Employee Directory',
   '/finance/expenses': 'Operating Expenses',
   '/finance/vendors': 'Vendor Directory',
+  '/finance/purchase-orders': 'Purchase Orders',
+  '/finance/assets': 'Fixed Asset Register',
   '/finance/petty-cash': 'Petty Cash (Imprest)',
   '/finance/budgets': 'Department Budgets',
   '/finance/events': 'Campus Events',
   '/finance/cashbook': 'Cash & Bank Book',
+  '/finance/accounting': 'Accounting & Ledgers',
   '/finance/reports': 'Financial Reports',
   '/finance/audit': 'Audit Trail',
   '/finance/settings': 'System Settings',
@@ -60,6 +65,14 @@ export default function FinanceTopbar({
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const pendingApprovalsCount = React.useMemo(() => {
+    const pendingBills = state.opExBills.filter(b => b.status === 'Submitted').length;
+    const pendingPOs = state.purchaseOrders.filter(po => po.status === 'Submitted').length;
+    const pendingPayroll = state.payrollRecords.filter(r => r.status.startsWith('Pending')).length;
+    const pendingScholarships = (state.scholarshipApplications || []).filter(s => s.status === 'Submitted' || s.status === 'Documents Verified').length;
+    return pendingBills + pendingPOs + pendingPayroll + pendingScholarships;
+  }, [state]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -161,13 +174,16 @@ export default function FinanceTopbar({
           <span style={{ fontSize: '12px', color: '#83909d' }}>·</span>
           <span
             style={{
-              fontSize: '11.5px',
+              fontSize: '11px',
               color: '#64748b',
               fontWeight: 500,
+              maxWidth: '220px',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              display: 'inline-block',
             }}
+            title={state.settings.campusAddress}
           >
             {state.settings.campusAddress}
           </span>
@@ -209,6 +225,43 @@ export default function FinanceTopbar({
             </span>
           )}
         </div>
+
+        {/* Approval Inbox Quick Pill */}
+        <Link
+          href="/finance/approvals"
+          title="Approval Inbox"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 11px',
+            backgroundColor: pendingApprovalsCount > 0 ? '#fdf8ee' : '#f8fafc',
+            border: `1px solid ${pendingApprovalsCount > 0 ? '#e6d2aa' : '#e2e8f0'}`,
+            borderRadius: '6px',
+            color: '#102d47',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            textDecoration: 'none',
+          }}
+        >
+          <CheckSquare size={13} style={{ color: '#b49662' }} />
+          <span>Approvals</span>
+          {pendingApprovalsCount > 0 && (
+            <span
+              style={{
+                backgroundColor: '#b49662',
+                color: '#ffffff',
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: '10px',
+                lineHeight: 1.3,
+              }}
+            >
+              {pendingApprovalsCount}
+            </span>
+          )}
+        </Link>
 
         {/* Role Switcher Persona Dropdown */}
         <div ref={roleDropdownRef} style={{ position: 'relative' }}>

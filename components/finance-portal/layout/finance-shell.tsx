@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { FinanceProvider } from '@/lib/finance-portal/store/finance-store';
 import { ToastProvider } from '@/components/finance-portal/ui/toast';
+import { ApprovalNoticeProvider } from '@/components/finance-portal/ui/approval-notice';
 import FinanceSidebar from './finance-sidebar';
 import FinanceTopbar from './finance-topbar';
 
@@ -27,7 +28,8 @@ export default function FinanceShell({ children }: { children: React.ReactNode }
   return (
     <FinanceProvider>
       <ToastProvider>
-        <div className="finance-app-shell">
+        <ApprovalNoticeProvider>
+          <div className="finance-app-shell">
           {/* Mobile Backdrop */}
           {mobileOpen && (
             <div
@@ -85,6 +87,7 @@ export default function FinanceShell({ children }: { children: React.ReactNode }
             </footer>
           </div>
         </div>
+        </ApprovalNoticeProvider>
       </ToastProvider>
     </FinanceProvider>
   );

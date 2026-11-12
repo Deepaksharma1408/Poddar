@@ -28,6 +28,10 @@ import {
   ChevronRight,
   Shield,
   X,
+  FileCheck,
+  Layers,
+  Scale,
+  CheckSquare,
 } from 'lucide-react';
 import PoddarBrandLogo from '@/components/brand-logo';
 import WorkspaceSwitcher from '@/components/workspace-switcher';
@@ -45,6 +49,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: 'OVERVIEW',
     items: [
       { name: 'Dashboard', href: '/finance/dashboard', icon: LayoutDashboard },
+      { name: 'Approval Inbox', href: '/finance/approvals', icon: CheckSquare },
     ],
   },
   {
@@ -68,6 +73,8 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: 'EXPENDITURE',
     items: [
       { name: 'Operating Expenses', href: '/finance/expenses', icon: Receipt },
+      { name: 'Purchase Orders', href: '/finance/purchase-orders', icon: FileCheck },
+      { name: 'Fixed Asset Register', href: '/finance/assets', icon: Layers },
       { name: 'Vendor Directory', href: '/finance/vendors', icon: Truck },
       { name: 'Petty Cash (Imprest)', href: '/finance/petty-cash', icon: Coins },
       { name: 'Department Budgets', href: '/finance/budgets', icon: PieChart },
@@ -78,6 +85,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { name: 'Campus Events', href: '/finance/events', icon: CalendarDays },
       { name: 'Cash & Bank Book', href: '/finance/cashbook', icon: Landmark },
+      { name: 'Accounting & Ledgers', href: '/finance/accounting', icon: Scale },
       { name: 'Financial Reports', href: '/finance/reports', icon: FileSpreadsheet },
     ],
   },
@@ -102,6 +110,14 @@ export default function FinanceSidebar({
   const pathname = usePathname();
   const { state } = useFinance();
   const currentRole = state.settings.currentRole;
+
+  const pendingApprovalsCount = React.useMemo(() => {
+    const pendingBills = state.opExBills.filter(b => b.status === 'Submitted').length;
+    const pendingPOs = state.purchaseOrders.filter(po => po.status === 'Submitted').length;
+    const pendingPayroll = state.payrollRecords.filter(r => r.status.startsWith('Pending')).length;
+    const pendingScholarships = (state.scholarshipApplications || []).filter(s => s.status === 'Submitted' || s.status === 'Documents Verified').length;
+    return pendingBills + pendingPOs + pendingPayroll + pendingScholarships;
+  }, [state]);
 
   return (
     <aside
@@ -210,6 +226,21 @@ export default function FinanceSidebar({
                           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {item.name}
                           </span>
+                          {item.href === '/finance/approvals' && pendingApprovalsCount > 0 && (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                backgroundColor: '#b49662',
+                                color: '#ffffff',
+                                padding: '1px 6px',
+                                borderRadius: '10px',
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              {pendingApprovalsCount}
+                            </span>
+                          )}
                           {isActive && <ChevronRight size={13} style={{ color: '#c4ab77', flexShrink: 0 }} />}
                         </>
                       )}
@@ -224,7 +255,7 @@ export default function FinanceSidebar({
 
       {/* Role Indicator Footer - Pinned firmly at the bottom */}
       {!compact && (
-        <div className="finance-sidebar-footer">
+        <div className="finance-sidebar-footer" style={{ paddingBottom: '16px' }}>
           <div
             style={{
               padding: '10px 12px',
