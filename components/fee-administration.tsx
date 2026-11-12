@@ -3,7 +3,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { AS_OF, studentLedger, type SchoolFinance } from '@/lib/school-finance';
 import { assessLateFees, assignAdjustment, refundFee, type FeeAdjustment } from '@/lib/erp-management';
-import { Currency, downloadCSV, Status } from './finance-ui';
+import { Currency, downloadCSV } from './finance-ui';
 import { money } from '@/lib/finance';
 import {
   ArrowLeft,
@@ -15,7 +15,6 @@ import {
   RotateCcw,
   ShieldAlert,
   Trash2,
-  Wallet,
 } from 'lucide-react';
 
 const categories = ['Waiver', 'Scholarship', 'Concession', 'Charge', 'Late fee'] as const;

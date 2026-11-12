@@ -4,17 +4,14 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { canOpenPage, roles, type DemoRole } from '@/lib/erp-management';
 import type { SchoolFinance } from '@/lib/school-finance';
 import {
-  ArrowRight,
   BookOpen,
   Check,
   CheckCircle2,
-  Copy,
   GraduationCap,
   RotateCcw,
   Search,
   Settings,
   Shield,
-  ShieldAlert,
   Sparkles,
   Users,
   Wallet,

@@ -5,7 +5,6 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   Bell,
   CalendarCheck,
   CheckCircle2,

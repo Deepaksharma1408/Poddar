@@ -2,11 +2,11 @@
 
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { Policy, SchoolFinance } from '@/lib/school-finance';
-import { changePayroll, createPayrollRecord, openingPeriod, type PayrollRecord, type PayrollStatus } from '@/lib/payroll';
+import { changePayroll, createPayrollRecord, openingPeriod, type PayrollRecord } from '@/lib/payroll';
 import { Currency, Dialog, Status, downloadCSV } from './finance-ui';
 import { useInstitution } from './institution';
 import { downloadPayslipPDF, downloadPayrollRegisterPDF } from '@/lib/pdf-documents';
-import { Download, PauseCircle, PlayCircle, RefreshCw, CheckCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Download, PauseCircle, PlayCircle, RefreshCw } from 'lucide-react';
 
 export default function PayrollRegister({
   data,

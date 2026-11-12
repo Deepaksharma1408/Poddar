@@ -10,7 +10,6 @@ import {
   downloadLeaveReportPDF,
   downloadAttendanceReportPDF,
   downloadPayrollRegisterPDF,
-  downloadFinancialReportPDF,
 } from '@/lib/pdf-documents';
 import { SimplePDF, triggerPDFDownload } from '@/lib/pdf-generator';
 import { Download } from 'lucide-react';

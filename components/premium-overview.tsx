@@ -1,6 +1,6 @@
 'use client';
 import { useInstitution } from './institution';
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, CheckCircle2, CreditCard, GraduationCap, Landmark, ShieldCheck, Sparkles, Users, Wallet } from 'lucide-react';
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, CreditCard, GraduationCap, Landmark, ShieldCheck, Sparkles, Users, Wallet } from 'lucide-react';
 import { money } from '@/lib/finance';
 import { salaryBreakdown, studentLedger, type SchoolFinance } from '@/lib/school-finance';
 import { Person, Status } from './finance-ui';

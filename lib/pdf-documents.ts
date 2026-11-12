@@ -2,7 +2,7 @@
 // Provides dedicated generators for all 11 core ERP documents and reports.
 
 import { SimplePDF, triggerPDFDownload, PDF_COLORS } from './pdf-generator';
-import type { FeeStudent, FeePayment, Staff, Leave, SchoolFinance } from './school-finance';
+import type { FeeStudent, FeePayment, Staff, Leave } from './school-finance';
 import type { PayrollRecord } from './payroll';
 import type { PerformanceReview } from './hr';
 import type { CashEntry } from './accounting';
@@ -253,7 +253,6 @@ export function downloadSalaryStatementPDF(opts: {
 
   // Totals row
   const totalGross = records.reduce((s, r) => s + r.gross, 0);
-  const totalDeductions = records.reduce((s, r) => s + r.calculation.deduction, 0);
   const totalNet = records.reduce((s, r) => s + r.calculation.net, 0);
 
   rows.push([

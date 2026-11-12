@@ -3,7 +3,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { AS_OF, studentLedger, type NotificationDispatch, type SchoolFinance } from '@/lib/school-finance';
 import { moneyPrecise as money } from '@/lib/finance';
-import { Bell, Send, CheckCircle2, AlertTriangle, ShieldCheck, Filter } from 'lucide-react';
+import { Send, CheckCircle2 } from 'lucide-react';
 
 export interface NotificationEvent {
   id: string;

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import type { RecordProfile, SchoolFinance, Staff, FeeStudent, Leave } from '@/lib/school-finance';
-import { AS_OF, round, salaryBreakdown, studentLedger } from '@/lib/school-finance';
+import type { RecordProfile, SchoolFinance, Staff, FeeStudent } from '@/lib/school-finance';
+import { AS_OF, round, studentLedger } from '@/lib/school-finance';
 import { categoryBalance, defaultEvaluationCriteria, defaultLeaveRules, loanOutstanding, type PerformanceReview } from '@/lib/hr';
 import { Currency, Dialog, Person, Status } from './finance-ui';
 import { useInstitution } from './institution';
@@ -17,14 +17,8 @@ import {
 } from '@/lib/pdf-documents';
 import {
   Download,
-  CalendarCheck,
-  Award,
   FileText,
-  DollarSign,
   Clock,
-  Briefcase,
-  User,
-  Shield,
   Plus,
   Star,
   CheckCircle2,

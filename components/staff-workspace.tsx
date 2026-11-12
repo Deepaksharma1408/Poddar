@@ -2,7 +2,7 @@
 import { categoryBalance, chargedLeave, defaultLeaveRules } from '@/lib/hr';
 import { useInstitution } from './institution';
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { ArrowRight, ArrowUpRight, CalendarDays, Check, Download, Landmark, Plus, Settings2, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, Download, Landmark, Plus, Settings2, ShieldCheck, Sparkles } from 'lucide-react';
 import { moneyPrecise as money } from '@/lib/finance';
 import { AS_OF, salaryBreakdown, type Leave, type SchoolFinance } from '@/lib/school-finance';
 import { Currency, Dialog, Metric, Person, Status, downloadCSV } from './finance-ui';

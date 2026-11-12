@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useId } from 'react';
+import { useId } from 'react';
 
 export function PoddarCrest({
   size = 42,
@@ -15,7 +15,6 @@ export function PoddarCrest({
   const gold = '#c6a76c';
   const goldLight = '#f3e3be';
   const red = '#b8231f';
-  const navy = '#085293';
 
   return (
     <svg

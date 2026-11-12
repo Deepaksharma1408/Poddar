@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
   GraduationCap,
@@ -28,14 +28,11 @@ import {
   CheckCircle2,
   Landmark,
   Shield,
-  ShieldCheck,
   Clock,
   UserCheck,
   MessageSquare,
   Layers,
-  ChevronRight,
   LogOut,
-  Sliders,
   PanelLeftOpen,
   PanelLeftClose,
   User,
@@ -45,11 +42,7 @@ import { Dialog } from './finance-ui';
 import { canOpenPage, roles, type DemoRole } from '@/lib/erp-management';
 import Permissions from './permissions';
 import ReportCenter from './report-center';
-import RecordProfiles from './record-profiles';
 import FeeAdministration from './fee-administration';
-import Compensation from './compensation';
-import PeopleCalendar from './people-calendar';
-import HrPolicies from './hr-policies';
 import NotificationCenter from './notification-center';
 import SupportDesk from './support-desk';
 import SelfService from './self-service';
@@ -64,7 +57,6 @@ import PoddarBrandLogo from './brand-logo';
 import {
   AS_OF,
   createCollegeFinance,
-  createFinance,
   studentLedger,
   salaryBreakdown,
   type SchoolFinance,
@@ -472,7 +464,19 @@ function InstitutionPortal({
         {/* Executive Dedicated Portal Topbar */}
         <header className="portal-topbar">
           <div className="portal-topbar-brand">
-            <PoddarBrandLogo variant="dark" showTagline={false} size={36} />
+            <button
+              type="button"
+              className="portal-brand-button"
+              onClick={() => {
+                setDemoUser(undefined);
+                setPage('Dashboard');
+              }}
+              title="Return to Poddar Connect Home Dashboard"
+              aria-label="Return to Poddar Connect Home Dashboard"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center' }}
+            >
+              <PoddarBrandLogo variant="dark" showTagline={false} size={36} />
+            </button>
             <div className="portal-topbar-divider" />
             <span className="portal-session-badge">
               <span className="live-dot" /> {campus.name}
@@ -544,14 +548,20 @@ function InstitutionPortal({
         </button>
 
         {/* Brand Header */}
-        <div className="brand">
+        <button
+          type="button"
+          className="brand brand-clickable"
+          onClick={() => go('Dashboard')}
+          title="Go to Poddar Connect Home Dashboard"
+          aria-label="Go to Poddar Connect Home Dashboard"
+        >
           <PoddarBrandLogo
             variant="light"
             showTagline={!compactSidebar}
             iconOnly={compactSidebar}
             size={compactSidebar ? 38 : 42}
           />
-        </div>
+        </button>
 
         {/* Campus Switcher */}
         <button

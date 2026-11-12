@@ -11,7 +11,6 @@ import {
   type NotificationDispatch,
   type SchoolFinance,
 } from '@/lib/school-finance';
-import { Currency, Status } from './finance-ui';
 import { money } from '@/lib/finance';
 import { openingPeriod } from '@/lib/payroll';
 import { useInstitution } from './institution';
@@ -28,21 +27,13 @@ import {
   BookOpen,
   Calendar,
   CalendarCheck,
-  Check,
   CheckCircle2,
-  ChevronRight,
   Clock,
   CreditCard,
   Download,
-  FileText,
-  GraduationCap,
   MapPin,
-  MessageSquare,
-  QrCode,
   ShieldCheck,
-  Smartphone,
   Sparkles,
-  TrendingUp,
   UserCheck,
   Users,
   Wallet,
