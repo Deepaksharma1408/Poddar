@@ -36,7 +36,7 @@ import {
 import PoddarBrandLogo from '@/components/brand-logo';
 import WorkspaceSwitcher from '@/components/workspace-switcher';
 import { useFinance } from '@/lib/finance-portal/store/finance-store';
-import { canAccessRoute } from '@/lib/finance-portal/security/rbac';
+import { canAccessRoute, getAssignedApproverRoles } from '@/lib/finance-portal/security/rbac';
 
 interface NavItem {
   name: string;
@@ -112,12 +112,12 @@ export default function FinanceSidebar({
   const currentRole = state.settings.currentRole;
 
   const pendingApprovalsCount = React.useMemo(() => {
-    const pendingBills = state.opExBills.filter(b => b.status === 'Submitted').length;
-    const pendingPOs = state.purchaseOrders.filter(po => po.status === 'Submitted').length;
-    const pendingPayroll = state.payrollRecords.filter(r => r.status.startsWith('Pending')).length;
-    const pendingScholarships = (state.scholarshipApplications || []).filter(s => s.status === 'Submitted' || s.status === 'Documents Verified').length;
+    const pendingBills = state.opExBills.filter(b => b.status === 'Submitted' && getAssignedApproverRoles('BILL', b.status).includes(currentRole)).length;
+    const pendingPOs = state.purchaseOrders.filter(po => po.status === 'Submitted' && getAssignedApproverRoles('PO', po.status).includes(currentRole)).length;
+    const pendingPayroll = state.payrollRecords.filter(r => r.status.startsWith('Pending') && getAssignedApproverRoles('PAYROLL', r.status).includes(currentRole)).length;
+    const pendingScholarships = (state.scholarshipApplications || []).filter(s => (s.status === 'Submitted' || s.status === 'Documents Verified') && getAssignedApproverRoles('SCHOLARSHIP', s.status).includes(currentRole)).length;
     return pendingBills + pendingPOs + pendingPayroll + pendingScholarships;
-  }, [state]);
+  }, [state, currentRole]);
 
   return (
     <aside

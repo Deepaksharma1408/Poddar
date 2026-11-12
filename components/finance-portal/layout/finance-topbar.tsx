@@ -17,7 +17,7 @@ import {
   CheckSquare,
 } from 'lucide-react';
 import { useFinance } from '@/lib/finance-portal/store/finance-store';
-import { ALL_ROLES } from '@/lib/finance-portal/security/rbac';
+import { ALL_ROLES, getAssignedApproverRoles } from '@/lib/finance-portal/security/rbac';
 import type { Role } from '@/lib/finance-portal/types/finance';
 
 const ROUTE_NAMES: Record<string, string> = {
@@ -66,13 +66,15 @@ export default function FinanceTopbar({
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const currentRole = state.settings.currentRole;
+
   const pendingApprovalsCount = React.useMemo(() => {
-    const pendingBills = state.opExBills.filter(b => b.status === 'Submitted').length;
-    const pendingPOs = state.purchaseOrders.filter(po => po.status === 'Submitted').length;
-    const pendingPayroll = state.payrollRecords.filter(r => r.status.startsWith('Pending')).length;
-    const pendingScholarships = (state.scholarshipApplications || []).filter(s => s.status === 'Submitted' || s.status === 'Documents Verified').length;
+    const pendingBills = state.opExBills.filter(b => b.status === 'Submitted' && getAssignedApproverRoles('BILL', b.status).includes(currentRole)).length;
+    const pendingPOs = state.purchaseOrders.filter(po => po.status === 'Submitted' && getAssignedApproverRoles('PO', po.status).includes(currentRole)).length;
+    const pendingPayroll = state.payrollRecords.filter(r => r.status.startsWith('Pending') && getAssignedApproverRoles('PAYROLL', r.status).includes(currentRole)).length;
+    const pendingScholarships = (state.scholarshipApplications || []).filter(s => (s.status === 'Submitted' || s.status === 'Documents Verified') && getAssignedApproverRoles('SCHOLARSHIP', s.status).includes(currentRole)).length;
     return pendingBills + pendingPOs + pendingPayroll + pendingScholarships;
-  }, [state]);
+  }, [state, currentRole]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

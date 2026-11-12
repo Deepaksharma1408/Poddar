@@ -221,7 +221,25 @@ assert.equal(rbacModule.maskSalary('₹75,000', 'Cashier'), '₹•••••�
 assert.equal(rbacModule.maskSalary('₹75,000', 'HR Admin'), '₹75,000', 'HR Admin can view staff salary');
 assert.equal(rbacModule.maskBankAccount('4102', 'HOD'), '•••• •••• ••••', 'HOD cannot see bank account digits');
 assert.equal(rbacModule.maskBankAccount('4102', 'Accounts Admin'), '•••• •••• 4102');
-console.log('✔ Maker-checker rule enforcement and sensitive PII masking verified.');
+
+// Approval Inbox Role Assignment & Isolation
+const hodPayrollRoles = rbacModule.getAssignedApproverRoles('PAYROLL', 'Pending HOD Review');
+assert.ok(hodPayrollRoles.includes('HOD'), 'HOD review must be assigned to HOD');
+assert.ok(!hodPayrollRoles.includes('Accounts Admin'), 'Accounts Admin must NOT see Pending HOD Review items');
+
+const hrPayrollRoles = rbacModule.getAssignedApproverRoles('PAYROLL', 'Pending HR Approval');
+assert.ok(hrPayrollRoles.includes('HR Admin'), 'HR approval must be assigned to HR Admin');
+assert.ok(!hrPayrollRoles.includes('Accounts Admin'), 'Accounts Admin must NOT see Pending HR Approval items');
+
+const accountsPayrollRoles = rbacModule.getAssignedApproverRoles('PAYROLL', 'Pending Accounts Approval');
+assert.ok(accountsPayrollRoles.includes('Accounts Admin'), 'Accounts approval must be assigned to Accounts Admin');
+assert.ok(!accountsPayrollRoles.includes('HOD'), 'HOD must NOT see Pending Accounts Approval items');
+
+const poRoles = rbacModule.getAssignedApproverRoles('PO', 'Submitted');
+assert.ok(poRoles.includes('Director'), 'PO approval must be assigned to Director');
+assert.ok(!poRoles.includes('Accounts Admin'), 'Accounts Admin must NOT see PO approvals');
+
+console.log('✔ Maker-checker rule enforcement, role-assigned approval routing, and sensitive PII masking verified.');
 
 console.log('--- 6. Testing CSV Formula Injection Sanitizer ---');
 const csvModule = load('../lib/finance-portal/security/csv-sanitizer.ts');

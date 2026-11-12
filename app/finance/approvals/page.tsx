@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useFinance } from '@/lib/finance-portal/store/finance-store';
 import { formatINR, toRupees } from '@/lib/finance-portal/finance/money';
-import { canApproveRecord } from '@/lib/finance-portal/security/rbac';
+import { canApproveRecord, getAssignedApproverRoles } from '@/lib/finance-portal/security/rbac';
 import { Dialog } from '@/components/finance-portal/ui/dialog';
 import { useToast } from '@/components/finance-portal/ui/toast';
 import { useApprovalNotice } from '@/components/finance-portal/ui/approval-notice';
@@ -59,6 +59,7 @@ export default function ApprovalsInboxPage() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'BILL' | 'PO' | 'PAYROLL' | 'SCHOLARSHIP'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [detailItem, setDetailItem] = useState<ApprovalQueueItem | null>(null);
+  const [oversightMode, setOversightMode] = useState(false);
 
   // Aggregate pending items across all modules
   const queueItems = useMemo<ApprovalQueueItem[]>(() => {
@@ -151,24 +152,35 @@ export default function ApprovalsInboxPage() {
     return items;
   }, [state, currentDate]);
 
-  // Counts for tabs
+  // Role-Specific Filter: Only show items assigned to currentRole (Super Admin has oversight toggle)
+  const assignedQueueItems = useMemo(() => {
+    if (currentRole === 'Super Admin' && oversightMode) {
+      return queueItems;
+    }
+    return queueItems.filter(item => {
+      const assignedRoles = getAssignedApproverRoles(item.sourceType, item.stageName);
+      return assignedRoles.includes(currentRole);
+    });
+  }, [queueItems, currentRole, oversightMode]);
+
+  // Counts for tabs based on current role's assigned queue
   const counts = useMemo(() => {
     return {
-      ALL: queueItems.length,
-      BILL: queueItems.filter(i => i.sourceType === 'BILL').length,
-      PO: queueItems.filter(i => i.sourceType === 'PO').length,
-      PAYROLL: queueItems.filter(i => i.sourceType === 'PAYROLL').length,
-      SCHOLARSHIP: queueItems.filter(i => i.sourceType === 'SCHOLARSHIP').length,
+      ALL: assignedQueueItems.length,
+      BILL: assignedQueueItems.filter(i => i.sourceType === 'BILL').length,
+      PO: assignedQueueItems.filter(i => i.sourceType === 'PO').length,
+      PAYROLL: assignedQueueItems.filter(i => i.sourceType === 'PAYROLL').length,
+      SCHOLARSHIP: assignedQueueItems.filter(i => i.sourceType === 'SCHOLARSHIP').length,
     };
-  }, [queueItems]);
+  }, [assignedQueueItems]);
 
   const totalExposurePaise = useMemo(() => {
-    return queueItems.reduce((sum, item) => sum + item.amountPaise, 0);
-  }, [queueItems]);
+    return assignedQueueItems.reduce((sum, item) => sum + item.amountPaise, 0);
+  }, [assignedQueueItems]);
 
   // Filtered queue
   const filteredItems = useMemo(() => {
-    return queueItems.filter(item => {
+    return assignedQueueItems.filter(item => {
       const matchTab = activeTab === 'ALL' || item.sourceType === activeTab;
       const matchQuery =
         `${item.reference} ${item.title} ${item.departmentOrParty} ${item.categoryLabel}`
@@ -176,7 +188,7 @@ export default function ApprovalsInboxPage() {
           .includes(searchQuery.toLowerCase());
       return matchTab && matchQuery;
     });
-  }, [queueItems, activeTab, searchQuery]);
+  }, [assignedQueueItems, activeTab, searchQuery]);
 
   // Handle Approve
   const handleApprove = (item: ApprovalQueueItem) => {
@@ -203,12 +215,32 @@ export default function ApprovalsInboxPage() {
       });
       showToast('Purchase Order Approved', `${item.reference} sanctioned for procurement.`, 'success');
     } else if (item.sourceType === 'PAYROLL') {
+      const rec = item.rawPayload as PayrollRecord;
+      let nextStatus: PayrollRecord['status'] = 'Approved';
+      if (rec.status === 'Pending HOD Review') nextStatus = 'Pending HR Approval';
+      else if (rec.status === 'Pending HR Approval') nextStatus = 'Pending Accounts Approval';
+      else if (rec.status === 'Pending Accounts Approval') nextStatus = 'Approved';
+      else if (rec.status === 'Pending Director Approval') nextStatus = 'Approved';
+
       dispatch({
         type: 'UPDATE_PAYROLL_STATUS',
         recordId: item.id,
-        status: 'Approved',
+        status: nextStatus,
+        remarks: `Promoted to ${nextStatus} by ${currentRole} via Approval Inbox`,
       });
-      showToast('Payroll Record Approved', `${item.title} authorized for disbursement.`, 'success');
+
+      if (nextStatus.startsWith('Pending')) {
+        showApprovalNotice({
+          itemTitle: item.title,
+          category: 'Payroll & Salaries',
+          amountPaise: item.amountPaise,
+          reference: item.reference,
+          nextApproverTier: nextStatus.replace('Pending ', ''),
+          notes: `Payroll record verified by ${currentRole} and transmitted to ${nextStatus.replace('Pending ', '')} for authorization.`,
+        });
+      } else {
+        showToast('Payroll Record Approved', `${item.title} authorized for disbursement.`, 'success');
+      }
     } else if (item.sourceType === 'SCHOLARSHIP') {
       dispatch({
         type: 'APPROVE_SCHOLARSHIP',
@@ -289,6 +321,24 @@ export default function ApprovalsInboxPage() {
             <ShieldCheck size={14} />
             Active Role: {currentRole}
           </span>
+          {currentRole === 'Super Admin' && (
+            <button
+              type="button"
+              onClick={() => setOversightMode(prev => !prev)}
+              style={{
+                padding: '6px 12px',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                backgroundColor: oversightMode ? '#102d47' : '#ffffff',
+                color: oversightMode ? '#ffffff' : '#475569',
+                cursor: 'pointer',
+              }}
+            >
+              {oversightMode ? 'Institutional Oversight (All Items)' : 'Assigned Only'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -299,10 +349,10 @@ export default function ApprovalsInboxPage() {
             TOTAL PENDING SANCTIONS
           </span>
           <div className="headline-number" style={{ color: '#102d47', margin: '6px 0 2px' }}>
-            {queueItems.length} Requests
+            {assignedQueueItems.length} Requests
           </div>
           <span style={{ fontSize: '11px', color: '#83909d' }}>
-            Awaiting multi-tier authorization
+            Assigned to {currentRole} for signoff
           </span>
         </div>
 
@@ -576,8 +626,8 @@ export default function ApprovalsInboxPage() {
           {filteredItems.length === 0 && (
             <div style={{ padding: '36px', textAlign: 'center', color: '#83909d', fontSize: '12px' }}>
               <CheckCircle2 size={28} style={{ color: '#25866b', margin: '0 auto 8px', opacity: 0.8 }} />
-              <strong>All Caught Up!</strong>
-              <p style={{ margin: '4px 0 0' }}>No pending approval requests in this category.</p>
+              <strong style={{ fontSize: '13px', color: '#102d47', display: 'block' }}>All Caught Up for {currentRole}!</strong>
+              <p style={{ margin: '4px 0 0' }}>There are no pending authorization requests assigned to your role in this view.</p>
             </div>
           )}
         </div>

@@ -121,3 +121,33 @@ export function maskPAN(pan: string, role: Role): string {
   return `${pan.slice(0, 5)}••••${pan.slice(9)}`;
 }
 
+/**
+ * Determines which roles are authorized to approve an item at its current stage.
+ * Used for role-specific Approval Inbox filtering so only the assigned approver sees it.
+ */
+export function getAssignedApproverRoles(
+  sourceType: 'BILL' | 'PO' | 'PAYROLL' | 'PETTY_CASH' | 'SCHOLARSHIP',
+  stageName: string
+): Role[] {
+  switch (sourceType) {
+    case 'BILL':
+      return ['Accounts Admin', 'Super Admin'];
+    case 'PO':
+      return ['Director', 'Super Admin'];
+    case 'PAYROLL':
+      if (stageName.includes('HOD')) return ['HOD', 'Super Admin'];
+      if (stageName.includes('HR')) return ['HR Admin', 'Super Admin'];
+      if (stageName.includes('Accounts')) return ['Accounts Admin', 'Super Admin'];
+      if (stageName.includes('Director')) return ['Director', 'Super Admin'];
+      return ['HOD', 'Super Admin'];
+    case 'SCHOLARSHIP':
+      if (stageName === 'Documents Verified') return ['Director', 'Management', 'Super Admin'];
+      return ['Accounts Admin', 'Super Admin'];
+    case 'PETTY_CASH':
+      return ['Accounts Admin', 'Super Admin'];
+    default:
+      return ['Accounts Admin', 'Super Admin'];
+  }
+}
+
+
