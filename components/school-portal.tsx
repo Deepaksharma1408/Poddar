@@ -91,15 +91,6 @@ const navigationCategories = [
     ],
   },
   {
-    title: 'FINANCE',
-    items: [
-      { name: 'Fees & Payments', icon: Wallet },
-      { name: 'Fee Structures & Adjustments', icon: Wallet },
-      { name: 'Bank Reconciliation', icon: Landmark },
-      { name: 'Accounting & Ledgers', icon: Wallet },
-    ],
-  },
-  {
     title: 'HR & PAYROLL',
     items: [
       { name: 'Staff Attendance', icon: CalendarCheck },
@@ -553,6 +544,36 @@ function InstitutionPortal({
           <X size={21} />
         </button>
 
+        {/* Desktop Sidebar Collapse Toggle - Top Right Corner (Symbol Only) */}
+        {!mobile && (
+          <button
+            type="button"
+            className="sidebar-corner-toggle"
+            onClick={() => setCompactSidebar(!compactSidebar)}
+            title={compactSidebar ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            aria-label={compactSidebar ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: compactSidebar ? '8px' : '12px',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '6px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: '#8da4b7',
+              cursor: 'pointer',
+              zIndex: 10,
+              transition: 'all 0.18s ease',
+            }}
+          >
+            {compactSidebar ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+          </button>
+        )}
+
         {/* Brand Header */}
         <button
           type="button"
@@ -571,20 +592,6 @@ function InstitutionPortal({
 
         {/* Shared Workspace Switcher (College Management vs Finance) */}
         <WorkspaceSwitcher current="college" compact={compactSidebar} />
-
-        {/* Compact Mode Toggle (Desktop only) */}
-        {!mobile && (
-          <button
-            className="sidebar-rail-toggle"
-            onClick={() => setCompactSidebar(!compactSidebar)}
-            title={compactSidebar ? 'Expand Sidebar' : 'Collapse to Rail'}
-            data-tooltip={compactSidebar ? 'Expand Sidebar' : undefined}
-            aria-label={compactSidebar ? 'Expand Sidebar' : 'Collapse Sidebar'}
-          >
-            {compactSidebar ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={15} />}
-            {!compactSidebar && <span>Collapse Sidebar</span>}
-          </button>
-        )}
 
         {/* Categorized Navigation Groups */}
         <nav>
@@ -1008,7 +1015,7 @@ function InstitutionPortal({
                 </table>
               </div>
             </section>
-          ) : page === 'Teachers & Staff' || page === 'Teachers' ? (
+          ) : page === 'Faculty & Staff' || page === 'Teachers & Staff' || page === 'Teachers' || page === 'Employees' ? (
             <StaffWorkspace
               data={finance}
               setData={setFinance}
@@ -1017,7 +1024,7 @@ function InstitutionPortal({
               canManagePay={allowed('Payroll & Salary')}
               openPayroll={() => go('Payroll & Salary')}
             />
-          ) : page === 'Student Attendance' || page === 'Attendance' ? (
+          ) : page === 'Lecture Attendance' || page === 'Student Attendance' || page === 'Attendance' ? (
             <section className="card">
               <div className="premium-card-heading">
                 <div>
@@ -1233,9 +1240,9 @@ function InstitutionPortal({
             />
           ) : page === 'Accounting & Ledgers' || page === 'Accounting' ? (
             <ErpRegisters key={page} page="Accounting" data={finance} setData={setFinance} />
-          ) : page === 'Employee Attendance' ? (
+          ) : page === 'Staff Attendance' || page === 'Employee Attendance' || page === 'Employee attendance' ? (
             <ErpRegisters key={page} page="Employee attendance" data={finance} setData={setFinance} />
-          ) : page === 'Leave Management' || page === 'Leave requests' ? (
+          ) : page === 'Faculty Leave Management' || page === 'Leave Management' || page === 'Leave requests' ? (
             <StaffWorkspace
               data={finance}
               setData={setFinance}
@@ -1247,7 +1254,7 @@ function InstitutionPortal({
             />
           ) : page === 'Payroll & Salary' || page === 'Payroll' ? (
             <PayrollRegister data={finance} setData={setFinance} />
-          ) : page === 'Transport' ? (
+          ) : page === 'Transport Fleet' || page === 'Transport' ? (
             <section className="card">
               <div className="premium-card-heading">
                 <div>
@@ -1284,7 +1291,7 @@ function InstitutionPortal({
                 </table>
               </div>
             </section>
-          ) : page === 'Library' ? (
+          ) : page === 'Central Library' || page === 'Library' ? (
             <section className="card">
               <div className="premium-card-heading">
                 <div>

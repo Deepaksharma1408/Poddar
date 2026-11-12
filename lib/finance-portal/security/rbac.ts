@@ -55,12 +55,24 @@ export function canAccessRoute(role: Role, path: string): boolean {
  * Maker-Checker Enforcement Rule:
  * Whoever creates a payment, bill, bonus, refund, waiver, or payroll adjustment
  * can NEVER approve it, regardless of their role privileges.
+ * Supports both identity-level (userId) and role-level collision checks.
  */
 export function canApproveRecord(
   currentRole: Role,
   createdByRole: Role,
-  actionType: 'BILL' | 'PAYROLL' | 'REFUND' | 'WAIVER' | 'BONUS'
+  actionType: 'BILL' | 'PAYROLL' | 'REFUND' | 'WAIVER' | 'BONUS',
+  currentUserId?: string,
+  createdById?: string
 ): { allowed: boolean; reason?: string } {
+  // 1. Identity-level maker-checker violation
+  if (currentUserId && createdById && currentUserId === createdById) {
+    return {
+      allowed: false,
+      reason: `Maker-Checker Violation: User '${currentUserId}' created this record and is barred from approving it. An independent authorized checker must review it.`,
+    };
+  }
+
+  // 2. Role-level maker-checker lock
   if (currentRole === createdByRole) {
     return {
       allowed: false,

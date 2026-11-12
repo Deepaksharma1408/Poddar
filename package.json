@@ -10,7 +10,8 @@
     "test:finance": "node scripts/check-finance.mjs",
     "test:e2e": "node scripts/test-e2e-all.mjs",
     "test:portal": "node scripts/test-finance-portal.mjs",
-    "test": "npm run test:finance && npm run test:e2e && npm run test:portal"
+    "test:security": "node scripts/test-authorization-engine.mjs",
+    "test": "npm run test:finance && npm run test:e2e && npm run test:portal && npm run test:security"
   },
   "dependencies": {
     "next": "^16.0.0",

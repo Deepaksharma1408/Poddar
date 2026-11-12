@@ -514,9 +514,11 @@ button.brand:focus-visible,
   margin-bottom: 12px;
   transition: all 0.15s;
 }
-.sidebar-rail-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+.sidebar-rail-toggle:hover,
+.sidebar-corner-toggle:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+  border-color: rgba(181, 154, 101, 0.35) !important;
 }
 
 /* User Card at bottom of Sidebar */
