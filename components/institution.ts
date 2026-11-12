@@ -6,23 +6,35 @@ export const institutions = {
   college: {
     name: 'Poddar International College',
     shortName: 'College Management',
+    subtitle: 'Mansarovar Campus, Jaipur',
     groupLabel: 'Programme & Semester',
     prefix: 'PIC',
     campus: 'Mansarovar Campus, Jaipur',
     code: 'PIC-MAIN',
   },
-  management: {
-    name: 'Poddar Management and Technical Campus',
-    shortName: 'Management & Tech Campus',
+  finance: {
+    name: 'Poddar Institute · College Finance',
+    shortName: 'Finance',
+    subtitle: 'Accounts, payroll and expenditure',
     groupLabel: 'Programme & Semester',
-    prefix: 'PIC',
-    campus: 'Vatika Campus, Jaipur',
-    code: 'PMTC-VATIKA',
+    prefix: 'PIF',
+    campus: 'Mansarovar Campus, Jaipur',
+    code: 'PIF-ACCOUNTS',
   },
-  // Backward compatibility alias: ensures any legacy reference safely resolves to the college
+  // Backward compatibility alias: ensures any legacy reference safely resolves
+  management: {
+    name: 'Poddar Institute · College Finance',
+    shortName: 'Finance',
+    subtitle: 'Accounts, payroll and expenditure',
+    groupLabel: 'Programme & Semester',
+    prefix: 'PIF',
+    campus: 'Mansarovar Campus, Jaipur',
+    code: 'PIF-ACCOUNTS',
+  },
   school: {
     name: 'Poddar International College',
     shortName: 'College Management',
+    subtitle: 'Mansarovar Campus, Jaipur',
     groupLabel: 'Programme & Semester',
     prefix: 'PIC',
     campus: 'Mansarovar Campus, Jaipur',

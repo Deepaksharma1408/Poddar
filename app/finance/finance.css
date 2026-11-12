@@ -1,0 +1,454 @@
+/* ==========================================================================
+   Poddar Connect - Integrated Finance Workspace Luxury Design System
+   Comprehensive fix for:
+   1. Scrolling: 100% opaque sticky topbar, single scrollbar on sidebar nav,
+      sticky table headers, zero content bleed-through on window scroll.
+   2. Theme: Pure Poddar tokens (--navy: #102d47, --gold: #b49662, --green: #25866b,
+      --crimson: #ad211d), fully defined .card-surface, elegant KPI tiles,
+      Cormorant Garamond headline numbers, tabular currency figures.
+   3. Page Layout: Perfectly aligned 250px sidebar and main-shell margins,
+      institutional breadcrumbs, generous padding, beautiful data-tables.
+   ========================================================================== */
+
+:root,
+.finance-app,
+.finance-app-shell {
+  --navy: #102d47;
+  --navy-dark: #091e31;
+  --navy-light: #e8f1fa;
+  --gold: #b49662;
+  --gold-light: #fbf6eb;
+  --crimson: #ad211d;
+  --crimson-light: #fbeeed;
+  --green: #25866b;
+  --green-light: #edf7f1;
+
+  --bg-app: #f5f5f2;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-subtle: #f0f2f5;
+  --border: #e7e9e7;
+  --border-strong: #cbd5e1;
+
+  --text-primary: #182e46;
+  --text-secondary: #475569;
+  --text-muted: #83909d;
+  --text-inverse: #ffffff;
+
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-display: 'Manrope', 'DM Sans', sans-serif;
+
+  --shadow-sm: 0 1px 3px 0 rgba(16, 45, 71, 0.05);
+  --shadow-md: 0 4px 12px -2px rgba(16, 45, 71, 0.08), 0 2px 4px -2px rgba(16, 45, 71, 0.04);
+  --shadow-lg: 0 12px 24px -4px rgba(16, 45, 71, 0.12), 0 4px 8px -4px rgba(16, 45, 71, 0.06);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+.finance-app {
+  min-height: 100vh;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   1. STICKY TOPBAR & SCROLLING PARITY (Zero Bleed-Through)
+   ========================================================================== */
+
+.topbar.finance-topbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  max-height: 72px !important;
+  background-color: #ffffff !important;
+  background: #ffffff !important; /* 100% Solid white opaque - NEVER transparent! */
+  border-bottom: 1px solid #e7e9e7 !important;
+  box-shadow: 0 1px 4px rgba(16, 45, 71, 0.04) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 36px !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.topbar.finance-topbar.scrolled {
+  box-shadow: 0 4px 20px rgba(16, 45, 71, 0.08) !important;
+  border-bottom-color: #dbe0db !important;
+}
+
+/* ==========================================================================
+   2. SIDEBAR STRUCTURE & NO-DOUBLE-SCROLLBAR
+   ========================================================================== */
+
+.sidebar.finance-sidebar {
+  width: 250px !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  position: fixed !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  z-index: 50 !important;
+  background: #102d47 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 20px 14px 14px !important;
+  overflow: hidden !important; /* Prevents outer double scrollbars! */
+  box-sizing: border-box !important;
+  transition: width 0.2s ease, transform 0.2s ease !important;
+}
+
+.sidebar.finance-sidebar.compact {
+  width: 78px !important;
+  padding: 20px 8px 14px !important;
+}
+
+.finance-sidebar-brand {
+  flex-shrink: 0 !important;
+  text-align: center !important;
+  padding: 0 4px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.finance-sidebar-switcher {
+  flex-shrink: 0 !important;
+  margin-top: 14px !important;
+}
+
+.finance-sidebar-nav {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent !important;
+  padding: 8px 4px 14px 0 !important;
+  margin: 6px 0 !important;
+}
+
+.finance-sidebar-footer {
+  flex-shrink: 0 !important;
+  margin-top: auto !important;
+  padding-top: 10px !important;
+}
+
+/* ==========================================================================
+   3. MAIN SHELL & PAGE LAYOUT ALIGNMENT
+   ========================================================================== */
+
+.main-shell.finance-main-shell {
+  margin-left: 250px !important;
+  width: calc(100% - 250px) !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background-color: #f5f5f2 !important;
+  transition: margin-left 0.2s ease, width 0.2s ease !important;
+  box-sizing: border-box !important;
+}
+
+.main-shell.finance-main-shell.compact {
+  margin-left: 78px !important;
+  width: calc(100% - 78px) !important;
+}
+
+.main-shell.finance-main-shell main {
+  flex: 1 1 auto !important;
+  max-width: 1740px !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  padding: 28px 36px 48px !important;
+  box-sizing: border-box !important;
+}
+
+/* ==========================================================================
+   4. THEME: CARD SURFACE DEFINITION (The Key Missing Token)
+   ========================================================================== */
+
+.card-surface,
+.finance-app .card-surface,
+.finance-app-shell .card-surface {
+  background: #ffffff !important;
+  border: 1px solid #e7e9e7 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 8px rgba(16, 45, 71, 0.04) !important;
+  box-sizing: border-box !important;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease !important;
+}
+
+.card-surface:hover,
+.finance-app .card-surface:hover,
+.finance-app-shell .card-surface:hover {
+  box-shadow: 0 6px 20px rgba(16, 45, 71, 0.07) !important;
+}
+
+/* KPI Stat Metric Cards */
+.finance-app .card-surface[style*="borderLeft"],
+.finance-app-shell .card-surface[style*="borderLeft"] {
+  padding: 20px 22px !important;
+  border-radius: 9px !important;
+  background: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(16, 45, 71, 0.04) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+.finance-app .card-surface[style*="borderLeft"] span:first-child,
+.finance-app-shell .card-surface[style*="borderLeft"] span:first-child {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.2px !important;
+  text-transform: uppercase !important;
+  color: #83909d !important;
+}
+
+.finance-app .card-surface[style*="borderLeft"] .headline-number,
+.finance-app-shell .card-surface[style*="borderLeft"] .headline-number {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.8px !important;
+  line-height: 1.15 !important;
+  margin: 8px 0 4px !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.finance-app .card-surface[style*="borderLeft"] span:last-child,
+.finance-app-shell .card-surface[style*="borderLeft"] span:last-child {
+  font-size: 11.5px !important;
+  color: #718096 !important;
+}
+
+.finance-app .headline-number,
+.finance-app-shell .headline-number {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.6px !important;
+  line-height: 1.15 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.finance-app .tabular-nums,
+.finance-app-shell .tabular-nums {
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: 'tnum' !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Page Headings */
+.finance-app h1 {
+  font-family: 'Manrope', 'DM Sans', sans-serif !important;
+  font-size: 22px !important;
+  font-weight: 750 !important;
+  color: #102d47 !important;
+  letter-spacing: -0.4px !important;
+  line-height: 1.25 !important;
+  margin: 0 !important;
+}
+
+.finance-app h1 + p,
+.finance-app h1 ~ p {
+  font-size: 12px !important;
+  color: #83909d !important;
+  margin-top: 4px !important;
+  line-height: 1.5 !important;
+}
+
+/* ==========================================================================
+   5. TABLE STYLING SYSTEM (Data Table & Responsive Table with Sticky Header)
+   ========================================================================== */
+
+.table-container,
+.finance-app .table-container,
+.finance-app-shell .table-container {
+  width: 100% !important;
+  overflow-x: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #cbd5e1 transparent !important;
+  margin: 4px 0 !important;
+}
+
+.data-table,
+.responsive-table,
+.finance-app .data-table,
+.finance-app .responsive-table,
+.finance-app-shell .data-table,
+.finance-app-shell .responsive-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  text-align: left !important;
+  font-size: 12.5px !important;
+  white-space: nowrap !important;
+}
+
+.data-table th,
+.responsive-table th,
+.finance-app .data-table th,
+.finance-app-shell .data-table th {
+  background-color: #f8faf7 !important;
+  color: #708079 !important;
+  font-size: 10px !important;
+  font-weight: 750 !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+  padding: 13px 18px !important;
+  border-bottom: 1px solid #e7e9e7 !important;
+  border-top: 1px solid #f0f2f5 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+}
+
+.data-table td,
+.responsive-table td,
+.finance-app .data-table td,
+.finance-app-shell .data-table td {
+  padding: 13px 18px !important;
+  border-bottom: 1px solid #edf0e9 !important;
+  color: #344d5e !important;
+  font-size: 12.5px !important;
+  vertical-align: middle !important;
+}
+
+.data-table tr:last-child td,
+.responsive-table tr:last-child td,
+.finance-app .data-table tr:last-child td {
+  border-bottom: none !important;
+}
+
+.data-table tr:hover td,
+.responsive-table tr:hover td,
+.finance-app .data-table tr:hover td {
+  background-color: #fafbf9 !important;
+}
+
+/* ==========================================================================
+   6. STATUS BADGES & PILLS
+   ========================================================================== */
+
+.finance-badge,
+.status-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 4px 9px !important;
+  border-radius: 5px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+}
+
+.finance-badge.success,
+.status-pill.good {
+  background-color: #edf7f1 !important;
+  color: #25866b !important;
+  border: 1px solid rgba(37, 134, 107, 0.25) !important;
+}
+
+.finance-badge.warning,
+.status-pill.neutral {
+  background-color: #fbf6eb !important;
+  color: #8c6d32 !important;
+  border: 1px solid rgba(180, 150, 98, 0.3) !important;
+}
+
+.finance-badge.danger,
+.status-pill.bad {
+  background-color: #fbeeed !important;
+  color: #ad211d !important;
+  border: 1px solid rgba(173, 33, 29, 0.25) !important;
+}
+
+.finance-badge.neutral {
+  background-color: #f0f2f5 !important;
+  color: #475569 !important;
+  border: 1px solid #e7e9e7 !important;
+}
+
+.finance-badge.info {
+  background-color: #e8f1fa !important;
+  color: #102d47 !important;
+  border: 1px solid rgba(16, 45, 71, 0.2) !important;
+}
+
+/* ==========================================================================
+   7. FORM CONTROLS & BUTTONS
+   ========================================================================== */
+
+.finance-app input,
+.finance-app select,
+.finance-app textarea {
+  border: 1px solid #dcdfe4 !important;
+  border-radius: 6px !important;
+  padding: 9px 12px !important;
+  font-size: 12.5px !important;
+  background-color: #ffffff !important;
+  color: #182e46 !important;
+  outline: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.finance-app input:focus,
+.finance-app select:focus,
+.finance-app textarea:focus {
+  border-color: #b49662 !important;
+  box-shadow: 0 0 0 2.5px rgba(180, 150, 98, 0.25) !important;
+}
+
+.finance-app button:focus-visible,
+.finance-app a:focus-visible {
+  outline: 2.5px solid #b49662 !important;
+  outline-offset: 2px !important;
+}
+
+/* ==========================================================================
+   8. RESPONSIVE BREAKPOINTS
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .sidebar.finance-sidebar {
+    transform: translateX(-100%) !important;
+    width: 250px !important;
+  }
+  .sidebar.finance-sidebar.open {
+    transform: translateX(0) !important;
+    box-shadow: 10px 0 40px rgba(16, 45, 71, 0.35) !important;
+  }
+  .sidebar.finance-sidebar .mobile-only-close {
+    display: block !important;
+  }
+  .main-shell.finance-main-shell {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  .topbar.finance-topbar {
+    padding: 0 16px !important;
+  }
+  .topbar.finance-topbar .mobile-only-btn {
+    display: inline-flex !important;
+  }
+  .main-shell.finance-main-shell main {
+    padding: 20px 16px 36px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar.finance-topbar {
+    height: 64px !important;
+    min-height: 64px !important;
+    max-height: 64px !important;
+    padding: 0 14px !important;
+  }
+}
