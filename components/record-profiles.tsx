@@ -1212,7 +1212,7 @@ export default function RecordProfiles({
             <div>
               <div className="premium-card-heading">
                 <div>
-                  <h3>Teacher &amp; Staff Performance Management</h3>
+                  <h3>Faculty &amp; Staff Performance Management</h3>
                   <p>Configurable evaluation criteria, supervisor ratings, achievements, and review history.</p>
                 </div>
                 <button className="button primary small" onClick={() => setNewReviewDialog(true)}>

@@ -3,8 +3,8 @@ import { AS_OF, round, studentLedger, type SchoolFinance } from './school-financ
 export const roles = ['Super Admin', 'Principal', 'Management', 'HR Admin', 'Accounts Admin', 'Accountant', 'Cashier', 'HOD', 'Teacher', 'Non-teaching Staff', 'Student', 'Parent'] as const;
 export type DemoRole = typeof roles[number];
 
-const studentPages = ['Students', 'Student profiles', 'Attendance', 'Student Attendance', 'Parents & Guardians', 'Academics', 'Classes & Sections', 'Timetable', 'Examinations & Results', 'Library', 'Transport'];
-const peoplePages = ['Employees', 'Teachers', 'Teachers & Staff', 'Employee profiles', 'Employee attendance', 'Leave requests', 'Leave Management', 'HR policies', 'Leave calendar'];
+const studentPages = ['Students', 'Student profiles', 'Attendance', 'Student Attendance', 'Lecture Attendance', 'Parents & Guardians', 'Academics', 'Classes & Sections', 'Courses & Batches', 'Timetable', 'Lecture Timetable', 'Examinations & Results', 'Library', 'Central Library', 'Transport', 'Transport Fleet'];
+const peoplePages = ['Employees', 'Teachers', 'Teachers & Staff', 'Faculty & Staff', 'Employee profiles', 'Employee attendance', 'Staff Attendance', 'Leave requests', 'Leave Management', 'Faculty Leave Management', 'HR policies', 'Leave calendar'];
 const financePages = ['Fees & payments', 'Fees & Payments', 'Fee administration', 'Fee Structures & Adjustments', 'Compensation', 'Bank reconciliation', 'Accounting', 'Accounting & Ledgers'];
 const rolePages: Record<DemoRole, string[]> = {
   'Super Admin': [], Principal: [...studentPages, ...peoplePages],
@@ -28,10 +28,13 @@ const pageAliases: Record<string, string> = {
   'Attendance': 'Student Attendance',
   'Leave Management': 'Leave requests',
   'Leave requests': 'Leave Management',
+  'Faculty Leave Management': 'Leave Management',
   'Teachers & Staff': 'Teachers',
+  'Faculty & Staff': 'Teachers & Staff',
   'Teachers': 'Teachers & Staff',
   'Accounting & Ledgers': 'Accounting',
   'Accounting': 'Accounting & Ledgers',
+  'College Settings': 'Settings',
   'Campus Settings': 'Settings',
   'Settings': 'Campus Settings',
   'Role & Permission Management': 'Permissions',
@@ -45,8 +48,14 @@ const pageAliases: Record<string, string> = {
   'Reports': 'Student Reports',
   'Audit Trail / System Logs': 'Permissions',
   'Classes & Sections': 'Academics',
+  'Courses & Batches': 'Classes & Sections',
   'Academics': 'Classes & Sections',
   'Timetable': 'Academics',
+  'Lecture Timetable': 'Timetable',
+  'Lecture Attendance': 'Attendance',
+  'Staff Attendance': 'Employee Attendance',
+  'Central Library': 'Library',
+  'Transport Fleet': 'Transport',
   'Examinations & Results': 'Academics',
   'Parents & Guardians': 'Students',
 };

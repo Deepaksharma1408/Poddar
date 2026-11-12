@@ -1,2 +1,2 @@
-import SchoolPortal from '@/components/school-portal';
-export default function Page() { return <SchoolPortal />; }
+import CollegePortal from '@/components/school-portal';
+export default function Page() { return <CollegePortal />; }

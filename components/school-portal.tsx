@@ -84,15 +84,15 @@ const navigationCategories = [
     items: [
       { name: 'Students', icon: GraduationCap },
       { name: 'Parents & Guardians', icon: Users },
-      { name: 'Teachers & Staff', icon: Users },
-      { name: 'Student Attendance', icon: CalendarCheck },
+      { name: 'Faculty & Staff', icon: Users },
+      { name: 'Lecture Attendance', icon: CalendarCheck },
     ],
   },
   {
     title: 'ACADEMICS',
     items: [
-      { name: 'Classes & Sections', icon: Layers },
-      { name: 'Timetable', icon: BookOpen },
+      { name: 'Courses & Batches', icon: Layers },
+      { name: 'Lecture Timetable', icon: BookOpen },
       { name: 'Examinations & Results', icon: FileText },
     ],
   },
@@ -108,16 +108,16 @@ const navigationCategories = [
   {
     title: 'HR & PAYROLL',
     items: [
-      { name: 'Employee Attendance', icon: CalendarCheck },
-      { name: 'Leave Management', icon: CalendarDays },
+      { name: 'Staff Attendance', icon: CalendarCheck },
+      { name: 'Faculty Leave Management', icon: CalendarDays },
       { name: 'Payroll & Salary', icon: Banknote },
     ],
   },
   {
     title: 'CAMPUS SERVICES',
     items: [
-      { name: 'Transport', icon: Bus },
-      { name: 'Library', icon: LibraryBig },
+      { name: 'Transport Fleet', icon: Bus },
+      { name: 'Central Library', icon: LibraryBig },
       { name: 'Support Desk', icon: CircleHelp },
     ],
   },
@@ -141,7 +141,7 @@ const navigationCategories = [
     items: [
       { name: 'Role & Permission Management', icon: Shield },
       { name: 'Audit Trail / System Logs', icon: Clock },
-      { name: 'Campus Settings', icon: Settings },
+      { name: 'College Settings', icon: Settings },
     ],
   },
 ];
@@ -173,16 +173,23 @@ function exportCSV(filename: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url);
 }
 
-export default function SchoolPortal() {
-  const [institution, setInstitution] = useState<Institution>('school');
+export default function CollegePortal() {
+  const [institution, setInstitution] = useState<Institution>('college');
 
   useEffect(() => {
-    if (localStorage.getItem('poddar-institution') === 'college') setInstitution('college');
+    const saved = localStorage.getItem('poddar-institution');
+    if (saved === 'management') {
+      setInstitution('management');
+    } else {
+      setInstitution('college');
+      localStorage.setItem('poddar-institution', 'college');
+    }
   }, []);
 
   function switchInstitution(next: Institution) {
-    localStorage.setItem('poddar-institution', next);
-    setInstitution(next);
+    const target = next === 'management' ? 'management' : 'college';
+    localStorage.setItem('poddar-institution', target);
+    setInstitution(target);
   }
 
   return (
@@ -199,9 +206,9 @@ function InstitutionPortal({
   institution: Institution;
   switchInstitution: (next: Institution) => void;
 }) {
-  const campus = institutions[institution];
-  const financeKey = institution === 'school' ? 'poddar-finance-v2' : 'poddar-college-finance-v1';
-  const attendanceKey = institution === 'school' ? 'poddar-attendance-v2' : 'poddar-college-attendance-v1';
+  const campus = institutions[institution] ?? institutions.college;
+  const financeKey = 'poddar-college-finance-v1';
+  const attendanceKey = 'poddar-college-attendance-v1';
 
   const [role, setRole] = useState<DemoRole>('Super Admin');
   const [demoUser, setDemoUser] = useState<{ role: 'Employee' | 'Student' | 'Parent'; id: string }>();
@@ -220,7 +227,7 @@ function InstitutionPortal({
 
   const sidebarRef = useRef<HTMLElement>(null);
   const [mobile, setMobile] = useState(false);
-  const [finance, setFinance] = useState<SchoolFinance>(institution === 'school' ? createFinance : createCollegeFinance);
+  const [finance, setFinance] = useState<SchoolFinance>(createCollegeFinance);
 
   const normalizePageName = (name: string): string => {
     const map: Record<string, string> = {
@@ -229,18 +236,23 @@ function InstitutionPortal({
       'Fees & Payments': 'Fees & Payments',
       'Overview': 'Dashboard',
       'Dashboard': 'Dashboard',
-      'Teachers': 'Teachers & Staff',
-      'Teachers & Staff': 'Teachers & Staff',
-      'Employees': 'Teachers & Staff',
-      'Leave requests': 'Leave Management',
-      'Leave Management': 'Leave Management',
+      'Faculty & Staff': 'Faculty & Staff',
+      'Teachers & Staff': 'Faculty & Staff',
+      'Teachers': 'Faculty & Staff',
+      'Employees': 'Faculty & Staff',
+      'Faculty Leave Management': 'Faculty Leave Management',
+      'Leave Management': 'Faculty Leave Management',
+      'Leave requests': 'Faculty Leave Management',
       'Payroll': 'Payroll & Salary',
       'Payroll & Salary': 'Payroll & Salary',
-      'Attendance': 'Student Attendance',
-      'Student Attendance': 'Student Attendance',
-      'Academics': 'Classes & Sections',
-      'Classes & Sections': 'Classes & Sections',
-      'Timetable': 'Timetable',
+      'Lecture Attendance': 'Lecture Attendance',
+      'Student Attendance': 'Lecture Attendance',
+      'Attendance': 'Lecture Attendance',
+      'Courses & Batches': 'Courses & Batches',
+      'Classes & Sections': 'Courses & Batches',
+      'Academics': 'Courses & Batches',
+      'Lecture Timetable': 'Lecture Timetable',
+      'Timetable': 'Lecture Timetable',
       'Examinations & Results': 'Examinations & Results',
       'Fee administration': 'Fee Structures & Adjustments',
       'Fee Structures & Adjustments': 'Fee Structures & Adjustments',
@@ -248,12 +260,14 @@ function InstitutionPortal({
       'Bank Reconciliation': 'Bank Reconciliation',
       'Accounting': 'Accounting & Ledgers',
       'Accounting & Ledgers': 'Accounting & Ledgers',
-      'Employee Attendance': 'Employee Attendance',
-      'Employee attendance': 'Employee Attendance',
+      'Staff Attendance': 'Staff Attendance',
+      'Employee Attendance': 'Staff Attendance',
+      'Employee attendance': 'Staff Attendance',
       'Permissions': 'Role & Permission Management',
       'Role & Permission Management': 'Role & Permission Management',
-      'Settings': 'Campus Settings',
-      'Campus Settings': 'Campus Settings',
+      'College Settings': 'College Settings',
+      'Campus Settings': 'College Settings',
+      'Settings': 'College Settings',
       'Notifications': 'Notification Center',
       'Notification Center': 'Notification Center',
       'Reports': 'Student Reports',
@@ -263,8 +277,10 @@ function InstitutionPortal({
       'Parents & Guardians': 'Parents & Guardians',
       'Students': 'Students',
       'Student profiles': 'Students',
-      'Transport': 'Transport',
-      'Library': 'Library',
+      'Transport Fleet': 'Transport Fleet',
+      'Transport': 'Transport Fleet',
+      'Central Library': 'Central Library',
+      'Library': 'Central Library',
       'Support Desk': 'Support Desk',
       'Audit Trail / System Logs': 'Audit Trail / System Logs',
       'Announcements & Notices': 'Announcements & Notices',
@@ -515,8 +531,8 @@ function InstitutionPortal({
       {/* Categorized Collapsible Sidebar */}
       <aside
         ref={sidebarRef}
-        id="school-navigation"
-        aria-label="Poddar institutional navigation"
+        id="college-navigation"
+        aria-label="Poddar collegiate navigation"
         className={`sidebar ${sidebar ? 'open' : ''} ${compactSidebar ? 'compact' : ''}`}
       >
         <button
@@ -552,7 +568,7 @@ function InstitutionPortal({
             <>
               <span>
                 <strong>{campus.shortName}</strong>
-                <small>Mansarovar, Jaipur</small>
+                <small>{campus.campus ?? 'Mansarovar, Jaipur'}</small>
               </span>
               <ChevronDown size={14} />
             </>
@@ -561,7 +577,7 @@ function InstitutionPortal({
 
         {campusMenu && (
           <div aria-label="Institution workspaces" style={{ marginBottom: 12 }}>
-            {(Object.keys(institutions) as Institution[]).map(option => (
+            {(['college', 'management'] as Institution[]).map(option => (
               <button
                 key={option}
                 className={`nav-item ${option === institution ? 'active' : ''}`}
@@ -645,10 +661,10 @@ function InstitutionPortal({
             data-tooltip={compactSidebar ? `Console (${role})` : undefined}
             title={compactSidebar ? `Console (${role})` : undefined}
           >
-            <Avatar name="School Admin" color="gold" />
+            <Avatar name="College Admin" color="gold" />
             {!compactSidebar && (
               <div className="sidebar-user-info">
-                <strong>Admin Console</strong>
+                <strong>College Console</strong>
                 <small>{role}</small>
               </div>
             )}
@@ -718,7 +734,7 @@ function InstitutionPortal({
 
           {!compactSidebar && (
             <div className="sidebar-foot">
-              <span className="live-dot" /> Poddar Institutional ERP <span>2026–27</span>
+              <span className="live-dot" /> Poddar College ERP <span>2026–27</span>
             </div>
           )}
         </div>
@@ -733,7 +749,7 @@ function InstitutionPortal({
                 <button
                   className="mobile-menu icon-button"
                   aria-label="Open navigation"
-                  aria-controls="school-navigation"
+                  aria-controls="college-navigation"
                   aria-expanded={sidebar}
                   onClick={() => setSidebar(true)}
                 >
@@ -768,8 +784,8 @@ function InstitutionPortal({
                   <input
                     id="topbar-global-search"
                     ref={searchInputRef}
-                    aria-label="Search students, teachers, fees, records"
-                    placeholder="Search students, teachers, fees, records..."
+                    aria-label="Search students, faculty, courses, fees, records"
+                    placeholder="Search students, faculty, courses, fees, records..."
                     value={search}
                     onChange={e => {
                       setSearch(e.target.value);
@@ -830,9 +846,9 @@ function InstitutionPortal({
                     aria-expanded={profileMenuOpen}
                     aria-haspopup="menu"
                   >
-                    <Avatar name="School Admin" color="gold" />
+                    <Avatar name="College Admin" color="gold" />
                     <div className="profile-meta">
-                      <strong className="profile-name">School Admin</strong>
+                      <strong className="profile-name">College Admin</strong>
                       <small className="profile-role">{role}</small>
                     </div>
                     <ChevronDown size={14} className={`profile-chevron ${profileMenuOpen ? 'rotated' : ''}`} />
@@ -842,10 +858,10 @@ function InstitutionPortal({
                     <div className="profile-dropdown-menu" role="menu">
                       <div className="dropdown-account-header">
                         <div className="dropdown-account-info">
-                          <strong className="dropdown-admin-title">School Administrator</strong>
+                          <strong className="dropdown-admin-title">College Administrator</strong>
                           <span className="dropdown-campus-badge">{campus.shortName}</span>
                         </div>
-                        <small className="dropdown-email">admin@{institution}.poddar.edu</small>
+                        <small className="dropdown-email">admin@college.poddar.edu</small>
                       </div>
 
                       <div className="dropdown-divider" />
@@ -856,7 +872,8 @@ function InstitutionPortal({
                         role="menuitem"
                         onClick={() => {
                           setProfileMenuOpen(false);
-                          if (allowed('Teachers & Staff')) go('Teachers & Staff');
+                          if (allowed('Faculty & Staff')) go('Faculty & Staff');
+                          else if (allowed('Teachers & Staff')) go('Teachers & Staff');
                           else go('Dashboard');
                         }}
                       >
@@ -870,11 +887,11 @@ function InstitutionPortal({
                         role="menuitem"
                         onClick={() => {
                           setProfileMenuOpen(false);
-                          switchInstitution(institution === 'school' ? 'college' : 'school');
+                          switchInstitution(institution === 'college' ? 'management' : 'college');
                         }}
                       >
                         <Building2 size={15} className="dropdown-item-icon" />
-                        <span>Switch Campus ({institution === 'school' ? 'Poddar College' : 'Poddar School'})</span>
+                        <span>Switch Campus ({institution === 'college' ? 'Management Campus' : 'International College'})</span>
                       </button>
 
                       <button
@@ -883,7 +900,8 @@ function InstitutionPortal({
                         role="menuitem"
                         onClick={() => {
                           setProfileMenuOpen(false);
-                          if (allowed('Campus Settings')) go('Campus Settings');
+                          if (allowed('College Settings')) go('College Settings');
+                          else if (allowed('Campus Settings')) go('Campus Settings');
                           else if (allowed('Settings')) go('Settings');
                           else go('Role & Permission Management');
                         }}
@@ -921,10 +939,10 @@ function InstitutionPortal({
                   <div className="eyebrow">
                     <span /> ACADEMIC SESSION 2026–27
                   </div>
-                  <h1>{page === 'Dashboard' || page === 'Overview' ? 'Good Afternoon, School Admin' : page}</h1>
+                  <h1>{page === 'Dashboard' || page === 'Overview' ? 'Good Afternoon, College Admin' : page}</h1>
                   <p>
                     {page === 'Dashboard' || page === 'Overview'
-                      ? 'A thoughtful space for an exceptional school.'
+                      ? 'A thoughtful command centre for an exceptional college.'
                       : `Manage ${page.toLowerCase()} for ${campus.name}.`}
                   </p>
                 </div>
@@ -1110,22 +1128,16 @@ function InstitutionPortal({
                 </table>
               </div>
             </section>
-          ) : page === 'Classes & Sections' ? (
+          ) : page === 'Courses & Batches' || page === 'Classes & Sections' ? (
             <div className="classes-grid">
-              {(institution === 'college'
-                ? [
-                    { title: 'BCA (Bachelor of Computer Applications)', sem: 'Semester II', teacher: 'Dr. Priya Sharma', students: 48, room: 'Lab 101' },
-                    { title: 'BBA (Bachelor of Business Admin)', sem: 'Semester IV', teacher: 'Prof. Rahul Joshi', students: 52, room: 'Room 202' },
-                    { title: 'B.Com (Honours)', sem: 'Semester II', teacher: 'Dr. Neha Agarwal', students: 45, room: 'Room 105' },
-                    { title: 'B.Sc (Information Technology)', sem: 'Semester VI', teacher: 'Prof. Amit Kumar', students: 38, room: 'Lab 103' },
-                  ]
-                : [
-                    { title: 'Class VIII · Section A', sem: 'Middle School', teacher: 'Mrs. Sunita Sharma', students: 32, room: 'Room 101' },
-                    { title: 'Class IX · Section B', sem: 'Secondary', teacher: 'Mr. Rajesh Verma', students: 30, room: 'Room 102' },
-                    { title: 'Class X · Section A', sem: 'Secondary (Board)', teacher: 'Dr. Priya Sharma', students: 35, room: 'Room 103' },
-                    { title: 'Class XII · Science', sem: 'Senior Secondary', teacher: 'Prof. Amit Kumar', students: 28, room: 'Science Wing' },
-                  ]
-              ).map(cohort => (
+              {[
+                { title: 'BCA (Bachelor of Computer Applications)', sem: 'Semester II', teacher: 'Dr. Priya Sharma (HOD Comp. App.)', students: 48, room: 'Computing Lab 1' },
+                { title: 'BBA (Bachelor of Business Admin)', sem: 'Semester IV', teacher: 'Prof. Rahul Joshi (Dean Mgmt.)', students: 52, room: 'Management Hall 202' },
+                { title: 'B.Com (Honours in Accountancy)', sem: 'Semester II', teacher: 'Dr. Neha Agarwal (Commerce)', students: 45, room: 'Lecture Hall 105' },
+                { title: 'B.Sc (Information Technology)', sem: 'Semester VI', teacher: 'Prof. Amit Kumar (Faculty IT)', students: 38, room: 'Software Lab 103' },
+                { title: 'MCA (Master of Computer Applications)', sem: 'Semester I', teacher: 'Dr. Praveen Sharma (Director)', students: 30, room: 'PG Block Lab 3' },
+                { title: 'MBA (Marketing & Finance)', sem: 'Semester III', teacher: 'Prof. Karan Mehta (Associate Professor)', students: 42, room: 'Executive Seminar Hall' },
+              ].map(cohort => (
                 <div key={cohort.title} className="class-box-card">
                   <div className="class-box-head">
                     <span className="identity-badge active">{cohort.sem}</span>
@@ -1134,23 +1146,23 @@ function InstitutionPortal({
                   <div className="class-box-title">{cohort.title}</div>
                   <div className="class-box-stats">
                     <div className="class-stat-item">
-                      <span>Class Teacher</span>
+                      <span>Course Coordinator</span>
                       <strong>{cohort.teacher}</strong>
                     </div>
                     <div className="class-stat-item">
                       <span>Enrolled</span>
-                      <strong>{cohort.students} Students</strong>
+                      <strong>{cohort.students} Scholars</strong>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          ) : page === 'Timetable' || page === 'Academics' ? (
+          ) : page === 'Lecture Timetable' || page === 'Timetable' || page === 'Academics' ? (
             <section className="card">
               <div className="premium-card-heading">
                 <div>
-                  <h3>Institutional Timetable</h3>
-                  <p>{institution === 'school' ? 'Class X · Section A teaching schedule' : 'BCA · Semester 2 teaching schedule'}</p>
+                  <h3>Collegiate Lecture Timetable</h3>
+                  <p>BCA &amp; BBA Department lecture and lab schedule · Academic Session 2026–27</p>
                 </div>
               </div>
               <div className="table-wrap">
@@ -1395,7 +1407,7 @@ function InstitutionPortal({
                   </thead>
                   <tbody>
                     {[
-                      ['2026-11-04 11:22:10', 'School Admin', 'Reconciled Bank Statement', 'Bank Reconciliation', 'Success'],
+                      ['2026-11-04 11:22:10', 'College Admin', 'Reconciled Bank Statement', 'Bank Reconciliation', 'Success'],
                       ['2026-11-04 10:45:02', 'Accounts Admin', 'Approved Fee Waiver (₹5,000)', 'Fee Administration', 'Success'],
                       ['2026-11-04 09:30:15', 'Super Admin', 'Configured Role Permissions', 'Permissions Matrix', 'Success'],
                       ['2026-11-03 16:12:44', 'HR Admin', 'Approved Paid Leave Request', 'Leave Management', 'Success'],
@@ -1412,12 +1424,12 @@ function InstitutionPortal({
                 </table>
               </div>
             </section>
-          ) : page === 'Campus Settings' || page === 'Settings' ? (
+          ) : page === 'College Settings' || page === 'Campus Settings' || page === 'Settings' ? (
             <section className="card settings-card">
               <div className="premium-card-heading" style={{ paddingLeft: 0 }}>
                 <div>
-                  <h3>Institutional Profile</h3>
-                  <p>Campus registration and public contact details.</p>
+                  <h3>Collegiate Institutional Profile</h3>
+                  <p>College campus registration, affiliation, and administration contact details.</p>
                 </div>
               </div>
               <div className="settings-brand-wrap">
@@ -1429,16 +1441,17 @@ function InstitutionPortal({
                 <div><dt>Email</dt><dd><a href="mailto:admission@poddarinstitute.org">admission@poddarinstitute.org</a></dd></div>
                 <div><dt>Admission Helpline</dt><dd>+91-9694875297</dd></div>
                 <div><dt>General Inquiries</dt><dd>+91-7023652996</dd></div>
+                <div><dt>Affiliation</dt><dd>University of Rajasthan / AICTE Approved</dd></div>
                 <div><dt>Prototype Storage</dt><dd>Interactive demo storage (persisted in browser)</dd></div>
               </dl>
               <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
                 <a
                   className="button secondary"
-                  href="https://www.poddarinstitute.org/poddar-international-school"
+                  href="https://poddarcollege.com"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Visit Official Website <ArrowUpRight size={15} />
+                  Visit Official College Website <ArrowUpRight size={15} />
                 </a>
                 <button
                   className="button secondary"
@@ -1625,3 +1638,5 @@ function InstitutionPortal({
     </div>
   );
 }
+
+export { CollegePortal as SchoolPortal };

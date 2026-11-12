@@ -530,7 +530,7 @@ export default function SelfService({
                     <span className="announcement-date">{AS_OF}</span>
                   </div>
                   <h3>All academic and fee records up to date</h3>
-                  <p>When fees are paid online, instantaneous automated receipts and alerts are dispatched to you, your child, and the class teacher coordinator.</p>
+                  <p>When fees are paid online, instantaneous automated receipts and alerts are dispatched to you, your scholar, and the department faculty coordinator.</p>
                 </div>
               )}
             </div>
@@ -901,7 +901,7 @@ export default function SelfService({
                     <span className="announcement-date">{AS_OF}</span>
                   </div>
                   <h3>Direct Online Payment Available</h3>
-                  <p>You can pay your academic fees directly from this portal via UPI, Cards, or Net Banking. Once paid, notifications are dispatched to you, your parents, and your class teacher immediately.</p>
+                  <p>You can pay your academic fees directly from this portal via UPI, Cards, or Net Banking. Once paid, notifications are dispatched to you, your parents, and your faculty mentor immediately.</p>
                 </div>
               )}
             </div>
@@ -1313,7 +1313,7 @@ export default function SelfService({
           <div className="info-strip" style={{ marginTop: 16 }}>
             <Sparkles size={16} color="#B59A65" />
             <span>
-              <strong>Tri-Party Notification Engine:</strong> On confirmation, instant notifications are automatically dispatched simultaneously to Parent ({payTargetStudent.guardian}), Student ({payTargetStudent.name}), and Class Teacher coordinator.
+              <strong>Tri-Party Notification Engine:</strong> On confirmation, instant notifications are automatically dispatched simultaneously to Parent ({payTargetStudent.guardian}), Student ({payTargetStudent.name}), and Department Faculty coordinator.
             </span>
           </div>
 

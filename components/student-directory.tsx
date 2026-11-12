@@ -592,7 +592,7 @@ export default function StudentDirectory({
                               {status}
                             </span>
                           </td>
-                          <td>Verified by Class Teacher</td>
+                          <td>Verified by Faculty Mentor</td>
                         </tr>
                       ))
                     ) : (

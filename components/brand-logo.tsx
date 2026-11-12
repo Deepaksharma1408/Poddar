@@ -185,7 +185,7 @@ export default function PoddarBrandLogo({
       {showTagline && (
         <div className="poddar-campus-edition">
           <span className="edition-bullet" />
-          <span className="edition-text">CONNECT · CAMPUS EDITION</span>
+          <span className="edition-text">CONNECT · COLLEGE EDITION</span>
         </div>
       )}
     </div>

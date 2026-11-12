@@ -121,7 +121,7 @@ const MODULES: ModuleDef[] = [
     description: 'Platform settings, permissions, and security audit logs',
     icon: Settings,
     permissions: [
-      { key: 'campus_settings', name: 'Campus Profile & Settings', description: 'Configure school details and branding', page: 'Settings' },
+      { key: 'campus_settings', name: 'Campus Profile & Settings', description: 'Configure college profile, academic sessions, and branding', page: 'Settings' },
       { key: 'audit_logs', name: 'Audit Trail & Logs', description: 'Review administrator activity logs', page: 'Audit Trail / System Logs' },
     ],
   },
