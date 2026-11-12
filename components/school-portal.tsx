@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import WorkspaceSwitcher from './workspace-switcher';
 import {
   LayoutDashboard,
   GraduationCap,
@@ -174,22 +176,26 @@ function exportCSV(filename: string, rows: (string | number)[][]) {
 }
 
 export default function CollegePortal() {
+  const router = useRouter();
   const [institution, setInstitution] = useState<Institution>('college');
 
   useEffect(() => {
-    const saved = localStorage.getItem('poddar-institution');
-    if (saved === 'management') {
-      setInstitution('management');
-    } else {
-      setInstitution('college');
+    try {
+      const saved = localStorage.getItem('poddar-active-workspace');
+      if (saved === 'finance') {
+        router.push('/finance/dashboard');
+        return;
+      }
+      localStorage.setItem('poddar-active-workspace', 'college');
       localStorage.setItem('poddar-institution', 'college');
+    } catch {
+      // Safe fallback
     }
-  }, []);
+    setInstitution('college');
+  }, [router]);
 
   function switchInstitution(next: Institution) {
-    const target = next === 'management' ? 'management' : 'college';
-    localStorage.setItem('poddar-institution', target);
-    setInstitution(target);
+    setInstitution(next === 'finance' ? 'finance' : 'college');
   }
 
   return (
@@ -553,45 +559,8 @@ function InstitutionPortal({
           />
         </div>
 
-        {/* Campus Switcher */}
-        <button
-          className="campus-switch"
-          aria-expanded={campusMenu}
-          onClick={() => setCampusMenu(open => !open)}
-          data-tooltip={compactSidebar ? campus.shortName : undefined}
-          title={compactSidebar ? campus.shortName : undefined}
-        >
-          <span className="campus-icon">
-            <Building2 size={18} />
-          </span>
-          {!compactSidebar && (
-            <>
-              <span>
-                <strong>{campus.shortName}</strong>
-                <small>{campus.campus ?? 'Mansarovar, Jaipur'}</small>
-              </span>
-              <ChevronDown size={14} />
-            </>
-          )}
-        </button>
-
-        {campusMenu && (
-          <div aria-label="Institution workspaces" style={{ marginBottom: 12 }}>
-            {(['college', 'management'] as Institution[]).map(option => (
-              <button
-                key={option}
-                className={`nav-item ${option === institution ? 'active' : ''}`}
-                aria-pressed={option === institution}
-                onClick={() => {
-                  switchInstitution(option);
-                  setCampusMenu(false);
-                }}
-              >
-                {institutions[option].shortName}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Shared Workspace Switcher (College Management vs Finance) */}
+        <WorkspaceSwitcher current="college" compact={compactSidebar} />
 
         {/* Compact Mode Toggle (Desktop only) */}
         {!mobile && (
