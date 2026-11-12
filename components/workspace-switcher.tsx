@@ -77,7 +77,7 @@ export default function WorkspaceSwitcher({
     <div ref={containerRef} style={{ position: 'relative', width: '100%', marginBottom: '14px' }}>
       <button
         type="button"
-        className="campus-switch"
+        className="workspace-switch"
         aria-expanded={isOpen}
         aria-label="Switch workspace"
         onClick={() => setIsOpen(prev => !prev)}
@@ -88,13 +88,14 @@ export default function WorkspaceSwitcher({
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
-          padding: compact ? '8px 4px' : '12px 10px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '8px',
+          padding: compact ? '8px 4px' : '10px 10px',
+          background: 'rgba(255, 255, 255, 0.06)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: '7px',
           color: '#ffffff',
           cursor: 'pointer',
           textAlign: 'left',
+          boxSizing: 'border-box',
           transition: 'background 0.15s ease',
         }}
       >
@@ -260,3 +261,4 @@ export default function WorkspaceSwitcher({
     </div>
   );
 }
+

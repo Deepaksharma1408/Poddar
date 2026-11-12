@@ -180,3 +180,4 @@ export function syncWorkspaces(): { syncedStudents: number; syncedPayments: numb
     return { syncedStudents: 0, syncedPayments: 0, syncedPayroll: 0 };
   }
 }
+

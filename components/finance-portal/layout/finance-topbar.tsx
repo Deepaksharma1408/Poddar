@@ -4,12 +4,10 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Menu,
-  Moon,
-  Sun,
-  Calendar,
-  UserCheck,
   ChevronDown,
   RefreshCw,
   Download,
@@ -21,26 +19,47 @@ import { useFinance } from '@/lib/finance-portal/store/finance-store';
 import { ALL_ROLES } from '@/lib/finance-portal/security/rbac';
 import type { Role } from '@/lib/finance-portal/types/finance';
 
+const ROUTE_NAMES: Record<string, string> = {
+  '/finance/dashboard': 'Dashboard',
+  '/finance/fees': 'Fees & Collections',
+  '/finance/dues': 'Defaulters & Dues',
+  '/finance/scholarships': 'Scholarships',
+  '/finance/income': 'Other Income',
+  '/finance/payroll': 'Payroll & Salaries',
+  '/finance/guest-faculty': 'Guest Faculty',
+  '/finance/employees': 'Employee Directory',
+  '/finance/expenses': 'Operating Expenses',
+  '/finance/vendors': 'Vendor Directory',
+  '/finance/petty-cash': 'Petty Cash (Imprest)',
+  '/finance/budgets': 'Department Budgets',
+  '/finance/events': 'Campus Events',
+  '/finance/cashbook': 'Cash & Bank Book',
+  '/finance/reports': 'Financial Reports',
+  '/finance/audit': 'Audit Trail',
+  '/finance/settings': 'System Settings',
+};
+
 export default function FinanceTopbar({
   onToggleSidebar,
 }: {
   onToggleSidebar: () => void;
 }) {
-  const { state, switchRole, currentDate, resetDemoData, exportBackupJSON, dispatch } = useFinance();
+  const pathname = usePathname();
+  const { state, switchRole, currentDate, resetDemoData, exportBackupJSON } = useFinance();
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
 
-  const isDark = state.settings.theme === 'dark';
-
-  const toggleTheme = () => {
-    const nextTheme = isDark ? 'light' : 'dark';
-    dispatch({ type: 'UPDATE_SETTINGS', payload: { theme: nextTheme } });
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-theme', nextTheme);
-    }
-  };
+  // Track scroll position to elevate the topbar smoothly
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolled(window.scrollY > 8);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -55,24 +74,12 @@ export default function FinanceTopbar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const currentModuleName = ROUTE_NAMES[pathname] || 'Finance';
+
   return (
-    <header
-      className="topbar finance-topbar"
-      style={{
-        height: '74px',
-        backgroundColor: '#ffffff',
-        borderBottom: '1px solid var(--border, #e7e9e7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 32px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 25,
-      }}
-    >
-      {/* Left: Mobile Toggle & Workspace Kicker */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+    <header className={`topbar finance-topbar ${scrolled ? 'scrolled' : ''}`}>
+      {/* Left: Mobile Toggle & Institutional Breadcrumbs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
         <button
           type="button"
           onClick={onToggleSidebar}
@@ -82,7 +89,7 @@ export default function FinanceTopbar({
             background: 'none',
             border: 'none',
             padding: '6px',
-            color: 'var(--text-secondary, #475569)',
+            color: '#475569',
             cursor: 'pointer',
             display: 'none',
           }}
@@ -90,17 +97,63 @@ export default function FinanceTopbar({
           <Menu size={20} />
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Breadcrumbs Navigation */}
+        <nav
+          aria-label="Breadcrumb navigation"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '12px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <Link
+            href="/"
+            style={{
+              color: '#83909d',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Poddar Connect
+          </Link>
+          <span style={{ color: '#cbd5e1' }}>/</span>
+          <Link
+            href="/finance/dashboard"
+            style={{
+              color: '#83909d',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Finance
+          </Link>
+          <span style={{ color: '#cbd5e1' }}>/</span>
+          <strong
+            style={{
+              color: '#102d47',
+              fontWeight: 700,
+              fontSize: '12.5px',
+            }}
+          >
+            {currentModuleName}
+          </strong>
+        </nav>
+
+        {/* Campus & FY Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
           <span
             style={{
-              fontSize: '11px',
+              fontSize: '10.5px',
               fontWeight: 700,
               color: '#102d47',
               backgroundColor: '#e8f1fa',
-              padding: '4px 9px',
+              padding: '3px 8px',
               borderRadius: '5px',
               border: '1px solid #d2e4f5',
               letterSpacing: '0.3px',
+              whiteSpace: 'nowrap',
             }}
           >
             FY {state.settings.academicYear}
@@ -108,9 +161,12 @@ export default function FinanceTopbar({
           <span style={{ fontSize: '12px', color: '#83909d' }}>·</span>
           <span
             style={{
-              fontSize: '12.5px',
-              color: '#475569',
+              fontSize: '11.5px',
+              color: '#64748b',
               fontWeight: 500,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {state.settings.campusAddress}
@@ -119,7 +175,7 @@ export default function FinanceTopbar({
       </div>
 
       {/* Right: Date, Role Switcher, Quick Tools */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
         {/* Date Display Pill */}
         <div
           title={state.settings.demoDateOverride ? 'Demo date override active' : 'Live system date'}

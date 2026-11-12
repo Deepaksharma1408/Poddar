@@ -107,19 +107,6 @@ export default function FinanceSidebar({
     <aside
       className={`sidebar finance-sidebar ${isOpen ? 'open' : ''} ${compact ? 'compact' : ''}`}
       aria-label="Poddar Finance Navigation"
-      style={{
-        width: compact ? '78px' : '260px',
-        backgroundColor: '#102d47',
-        color: '#ffffff',
-        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'fixed',
-        inset: '0 auto 0 0',
-        zIndex: 40,
-        padding: compact ? '20px 10px 0' : '20px 16px 0',
-        transition: 'width 0.2s ease, transform 0.2s ease',
-      }}
     >
       {/* Mobile close button */}
       <button
@@ -142,7 +129,7 @@ export default function FinanceSidebar({
       </button>
 
       {/* Shared Brand Logo */}
-      <div className="brand" style={{ textAlign: 'center', padding: '0 8px 18px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+      <div className="brand finance-sidebar-brand">
         <PoddarBrandLogo
           variant="light"
           showTagline={!compact}
@@ -152,20 +139,12 @@ export default function FinanceSidebar({
       </div>
 
       {/* Top Shared Workspace Switcher */}
-      <div style={{ marginTop: '16px' }}>
+      <div className="finance-sidebar-switcher">
         <WorkspaceSwitcher current="finance" compact={compact} />
       </div>
 
-      {/* Navigation Groups */}
-      <nav
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '10px 0 20px',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(255, 255, 255, 0.12) transparent',
-        }}
-      >
+      {/* Navigation Groups - Single Smooth Scroll Container */}
+      <nav className="finance-sidebar-nav">
         {NAV_GROUPS.map(group => {
           // Check route access permissions (handling both /route and /finance/route)
           const accessibleItems = group.items.filter(item => {
@@ -176,7 +155,7 @@ export default function FinanceSidebar({
           if (accessibleItems.length === 0) return null;
 
           return (
-            <div key={group.title} style={{ marginBottom: '16px' }}>
+            <div key={group.title} style={{ marginBottom: '14px' }}>
               {!compact && (
                 <div
                   style={{
@@ -191,7 +170,7 @@ export default function FinanceSidebar({
                   {group.title}
                 </div>
               )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {accessibleItems.map(item => {
                   const isActive = pathname === item.href || (item.href !== '/finance/dashboard' && pathname.startsWith(item.href));
                   const Icon = item.icon;
@@ -243,37 +222,37 @@ export default function FinanceSidebar({
         })}
       </nav>
 
-      {/* Role Indicator Footer */}
+      {/* Role Indicator Footer - Pinned firmly at the bottom */}
       {!compact && (
-        <div
-          style={{
-            padding: '12px 14px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            backgroundColor: 'rgba(0, 0, 0, 0.15)',
-            fontSize: '11px',
-            borderRadius: '6px',
-            margin: '0 0 16px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Shield size={14} style={{ color: '#c4ab77', flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ color: '#7893a9', display: 'block', fontSize: '9px', letterSpacing: '0.5px' }}>
-                ACTIVE PERSONA:
-              </span>
-              <strong
-                style={{
-                  color: '#e0cfac',
-                  display: 'block',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {currentRole}
-              </strong>
+        <div className="finance-sidebar-footer">
+          <div
+            style={{
+              padding: '10px 12px',
+              backgroundColor: 'rgba(0, 0, 0, 0.2)',
+              borderRadius: '6px',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Shield size={14} style={{ color: '#c4ab77', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ color: '#7893a9', display: 'block', fontSize: '8.5px', letterSpacing: '0.6px', fontWeight: 600 }}>
+                  ACTIVE PERSONA
+                </span>
+                <strong
+                  style={{
+                    color: '#e0cfac',
+                    display: 'block',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {currentRole}
+                </strong>
+              </div>
             </div>
           </div>
         </div>

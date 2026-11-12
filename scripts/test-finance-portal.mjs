@@ -233,3 +233,4 @@ assert.equal(csvModule.sanitizeCSVCell('Normal Text'), `"Normal Text"`);
 console.log('✔ CSV formula injection neutralization verified.');
 
 console.log('\n=== ALL INTEGRATED FINANCE PORTAL UNIT TESTS PASSED! ===');
+
