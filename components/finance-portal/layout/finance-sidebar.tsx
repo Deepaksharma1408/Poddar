@@ -32,6 +32,7 @@ import {
   Layers,
   Scale,
   CheckSquare,
+  Building2,
 } from 'lucide-react';
 import PoddarBrandLogo from '@/components/brand-logo';
 import WorkspaceSwitcher from '@/components/workspace-switcher';
@@ -93,6 +94,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: 'GOVERNANCE',
     items: [
       { name: 'Audit Trail', href: '/finance/audit', icon: History },
+      { name: 'Departments', href: '/finance/departments', icon: Building2 },
       { name: 'System Settings', href: '/finance/settings', icon: Settings },
     ],
   },

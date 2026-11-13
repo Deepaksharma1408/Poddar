@@ -32,6 +32,7 @@ import type {
   DefaulterFollowUp,
   ReminderDispatchLog,
   ScholarshipApplication,
+  InstitutionalDepartment,
 } from '../types/finance';
 import {
   INITIAL_SETTINGS,
@@ -76,6 +77,7 @@ export interface FinanceState {
   defaulterFollowUps: DefaulterFollowUp[];
   reminderDispatchLogs: ReminderDispatchLog[];
   scholarshipApplications: ScholarshipApplication[];
+  departments: InstitutionalDepartment[];
   lastSavedAt?: string;
 }
 
@@ -644,12 +646,139 @@ export function createInitialSeedState(): FinanceState {
     defaulterFollowUps: initialFollowUps,
     reminderDispatchLogs: initialReminderLogs,
     scholarshipApplications: initialScholarshipApps,
+    departments: SEED_DEPARTMENTS,
   };
 }
+
+export const SEED_DEPARTMENTS: InstitutionalDepartment[] = [
+  {
+    id: 'DEPT-CSIT',
+    code: 'CSIT',
+    name: 'Computer Science & IT',
+    hodName: 'Dr. Priya Mathur',
+    hodEmail: 'hod.cs@poddarinstitute.org',
+    category: 'Teaching / Academic',
+    facultyCount: 14,
+    studentCount: 220,
+    annualBudgetPaise: 150000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-MGMT',
+    code: 'MGMT',
+    name: 'Management & Business Studies',
+    hodName: 'Dr. R.K. Agarwal',
+    hodEmail: 'hod.mgmt@poddarinstitute.org',
+    category: 'Teaching / Academic',
+    facultyCount: 12,
+    studentCount: 180,
+    annualBudgetPaise: 120000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-COMM',
+    code: 'COMM',
+    name: 'Commerce & Accounting',
+    hodName: 'Prof. S.N. Gupta',
+    hodEmail: 'hod.comm@poddarinstitute.org',
+    category: 'Teaching / Academic',
+    facultyCount: 8,
+    studentCount: 140,
+    annualBudgetPaise: 80000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-SCI',
+    code: 'SCI',
+    name: 'Basic Sciences & Research Lab',
+    hodName: 'Dr. Meenakshi Sharma',
+    hodEmail: 'hod.science@poddarinstitute.org',
+    category: 'Teaching / Academic',
+    facultyCount: 9,
+    studentCount: 95,
+    annualBudgetPaise: 95000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-ADMIN',
+    code: 'ADMIN',
+    name: 'Campus Administration & Maintenance',
+    hodName: 'Col. V.K. Singh',
+    hodEmail: 'admin.director@poddarinstitute.org',
+    category: 'Administrative',
+    facultyCount: 18,
+    studentCount: 0,
+    annualBudgetPaise: 250000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-PHARM',
+    code: 'PHARM',
+    name: 'Pharmacy & Health Sciences',
+    hodName: 'Dr. Rajesh K. Verma',
+    hodEmail: 'hod.pharmacy@poddarinstitute.org',
+    category: 'Teaching / Academic',
+    facultyCount: 11,
+    studentCount: 110,
+    annualBudgetPaise: 135000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-ARTS',
+    code: 'ARTS',
+    name: 'Arts, Design & Humanities',
+    hodName: 'Dr. Sunita Rathore',
+    hodEmail: 'hod.arts@poddarinstitute.org',
+    category: 'Teaching / Academic',
+    facultyCount: 7,
+    studentCount: 85,
+    annualBudgetPaise: 65000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-EXAM',
+    code: 'EXAM',
+    name: 'Examination & Evaluation Cell',
+    hodName: 'Prof. Manish Joshi',
+    hodEmail: 'controller.exam@poddarinstitute.org',
+    category: 'Administrative',
+    facultyCount: 5,
+    studentCount: 0,
+    annualBudgetPaise: 40000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-LIB',
+    code: 'LIB',
+    name: 'Central Library & Learning Resource',
+    hodName: 'Dr. Anita Vyas',
+    hodEmail: 'librarian@poddarinstitute.org',
+    category: 'Student Support',
+    facultyCount: 4,
+    studentCount: 0,
+    annualBudgetPaise: 35000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-FIN',
+    code: 'FIN',
+    name: 'Finance & Accounts Division',
+    hodName: 'Sh. Deepak Sharma',
+    hodEmail: 'accounts@poddarinstitute.org',
+    category: 'Administrative',
+    facultyCount: 6,
+    studentCount: 0,
+    annualBudgetPaise: 50000000,
+    status: 'Active',
+  },
+];
 
 export type FinanceAction =
   | { type: 'SWITCH_ROLE'; role: Role }
   | { type: 'UPDATE_SETTINGS'; payload: Partial<SettingsConfig> }
+  | { type: 'ADD_DEPARTMENT'; department: InstitutionalDepartment }
+  | { type: 'UPDATE_DEPARTMENT'; department: InstitutionalDepartment }
+  | { type: 'DELETE_DEPARTMENT'; departmentId: string }
   | { type: 'RECORD_FEE_PAYMENT'; payment: FeePayment }
   | { type: 'VERIFY_FEE_PAYMENT'; paymentId: string }
   | { type: 'BOUNCE_FEE_PAYMENT'; paymentId: string; reason: string }
@@ -719,6 +848,34 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
       return {
         ...state,
         settings: { ...state.settings, ...action.payload },
+        auditLogs: [audit, ...state.auditLogs],
+      };
+    }
+
+    case 'ADD_DEPARTMENT': {
+      const audit = appendAudit('CREATE', 'DEPARTMENT', action.department.id, `Created institutional department: ${action.department.name} (${action.department.code})`);
+      return {
+        ...state,
+        departments: [...state.departments, action.department],
+        auditLogs: [audit, ...state.auditLogs],
+      };
+    }
+
+    case 'UPDATE_DEPARTMENT': {
+      const audit = appendAudit('UPDATE', 'DEPARTMENT', action.department.id, `Updated department profile for: ${action.department.name}`);
+      return {
+        ...state,
+        departments: state.departments.map(d => (d.id === action.department.id ? action.department : d)),
+        auditLogs: [audit, ...state.auditLogs],
+      };
+    }
+
+    case 'DELETE_DEPARTMENT': {
+      const target = state.departments.find(d => d.id === action.departmentId);
+      const audit = appendAudit('VOID', 'DEPARTMENT', action.departmentId, `Removed department: ${target?.name || action.departmentId}`);
+      return {
+        ...state,
+        departments: state.departments.filter(d => d.id !== action.departmentId),
         auditLogs: [audit, ...state.auditLogs],
       };
     }
@@ -1267,6 +1424,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             defaulterFollowUps: Array.isArray(parsed.defaulterFollowUps) && parsed.defaulterFollowUps.length > 0 ? parsed.defaulterFollowUps : fresh.defaulterFollowUps,
             reminderDispatchLogs: Array.isArray(parsed.reminderDispatchLogs) && parsed.reminderDispatchLogs.length > 0 ? parsed.reminderDispatchLogs : fresh.reminderDispatchLogs,
             scholarshipApplications: Array.isArray(parsed.scholarshipApplications) && parsed.scholarshipApplications.length > 0 ? parsed.scholarshipApplications : fresh.scholarshipApplications,
+            departments: Array.isArray(parsed.departments) && parsed.departments.length > 0 ? parsed.departments : fresh.departments,
           } as FinanceState;
         }
       }

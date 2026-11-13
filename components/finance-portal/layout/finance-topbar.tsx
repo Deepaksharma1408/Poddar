@@ -41,6 +41,7 @@ const ROUTE_NAMES: Record<string, string> = {
   '/finance/accounting': 'Accounting & Ledgers',
   '/finance/reports': 'Financial Reports',
   '/finance/audit': 'Audit Trail',
+  '/finance/departments': 'Department Management',
   '/finance/settings': 'System Settings',
 };
 

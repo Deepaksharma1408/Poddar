@@ -41,6 +41,7 @@ export const ROUTE_PERMISSIONS: PagePermission[] = [
   { path: '/purchase-orders', label: 'Purchase Orders', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Director', 'HOD'] },
   { path: '/reports', label: 'Financial Reports', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Accountant', 'Director'] },
   { path: '/audit', label: 'Audit Trail', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'Director'] },
+  { path: '/departments', label: 'Department Management', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin', 'HR Admin', 'Director', 'HOD'] },
   { path: '/settings', label: 'System Settings', allowedRoles: ['Super Admin', 'Management', 'Accounts Admin'] },
 ];
 

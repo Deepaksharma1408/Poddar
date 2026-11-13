@@ -311,6 +311,19 @@ export interface DepartmentBudget {
   committedPaise: number; // Approved bills waiting payment
 }
 
+export interface InstitutionalDepartment {
+  id: string; // 'DEPT-CSIT'
+  code: string; // 'CSIT'
+  name: string; // 'Computer Science & IT'
+  hodName: string; // 'Dr. Priya Mathur'
+  hodEmail?: string;
+  category: 'Teaching / Academic' | 'Administrative' | 'Campus Operations' | 'Student Support';
+  facultyCount: number;
+  studentCount: number;
+  annualBudgetPaise: number;
+  status: 'Active' | 'Inactive';
+}
+
 // ---------------------------
 // 5. SCHOLARSHIPS, INCOME & EVENTS
 // ---------------------------

@@ -4,6 +4,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Users,
   Search,
@@ -317,17 +318,40 @@ export default function EmployeesPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
             <div>
-              <label style={{ fontSize: '11.5px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Department</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 600 }}>Department*</label>
+                <Link
+                  href="/finance/departments"
+                  style={{ fontSize: '10.5px', color: 'var(--navy)', textDecoration: 'underline', fontWeight: 600 }}
+                  title="Open Department Management"
+                >
+                  + Manage Depts
+                </Link>
+              </div>
               <select
                 value={formDept}
                 onChange={e => setFormDept(e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', backgroundColor: 'var(--bg-card)' }}
+                style={{ width: '100%', padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', backgroundColor: 'var(--bg-card)', fontSize: '12px' }}
               >
-                <option value="Computer Science & IT">Computer Science & IT</option>
-                <option value="Management & Business Studies">Management & Business</option>
-                <option value="Commerce & Accounting">Commerce & Accounting</option>
-                <option value="Basic Sciences & Research Lab">Basic Sciences</option>
-                <option value="Campus Administration & Maintenance">Administration</option>
+                {(state.departments && state.departments.length > 0
+                  ? state.departments.map(d => d.name)
+                  : [
+                      'Computer Science & IT',
+                      'Management & Business Studies',
+                      'Commerce & Accounting',
+                      'Basic Sciences & Research Lab',
+                      'Campus Administration & Maintenance',
+                      'Pharmacy & Health Sciences',
+                      'Arts, Design & Humanities',
+                      'Examination & Evaluation Cell',
+                      'Central Library & Learning Resource',
+                      'Finance & Accounts Division',
+                    ]
+                ).map(deptName => (
+                  <option key={deptName} value={deptName}>
+                    {deptName}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
