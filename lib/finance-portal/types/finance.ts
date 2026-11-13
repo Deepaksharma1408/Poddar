@@ -75,7 +75,17 @@ export interface FeePayment {
   amountPaise: number;
   date: string;
   time?: string; // e.g. '10:45 AM' or '02:15 PM'
-  method: 'NEFT' | 'UPI' | 'Bank transfer' | 'Cheque' | 'Cash' | 'Demand Draft';
+  method:
+    | 'NEFT'
+    | 'UPI'
+    | 'UPI QR'
+    | 'Net Banking'
+    | 'Debit Card'
+    | 'Credit Card'
+    | 'Bank transfer'
+    | 'Cheque'
+    | 'Cash'
+    | 'Demand Draft';
   reference: string; // Unique UTR / Cheque / Txn No
   receiptNo: string;
   verified: boolean;

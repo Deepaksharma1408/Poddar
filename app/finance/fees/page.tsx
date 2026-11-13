@@ -26,7 +26,13 @@ import {
   AlertCircle,
   Building2,
   User,
+  QrCode,
+  Smartphone,
+  CheckCheck,
+  Sparkles,
+  Wallet,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useFinance } from '@/lib/finance-portal/store/finance-store';
 import { formatINR, formatINRExact, toPaise, paiseInWords } from '@/lib/finance-portal/finance/money';
 import { computeStudentLedger, validateAndRefundFee, StudentLedgerSummary } from '@/lib/finance-portal/finance/student-ledger';
@@ -76,10 +82,14 @@ function StatusPill({ status }: { status: string }) {
 function PaymentMethodBadge({ method }: { method: FeePayment['method'] }) {
   const styles: Record<FeePayment['method'], { bg: string; color: string; border: string }> = {
     UPI: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+    'UPI QR': { bg: '#ecfdf5', color: '#047857', border: '#6ee7b7' },
+    'Net Banking': { bg: '#f0f9ff', color: '#0369a1', border: '#bae6fd' },
+    'Debit Card': { bg: '#fdf4ff', color: '#86198f', border: '#f5d0fe' },
+    'Credit Card': { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
     NEFT: { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
     'Bank transfer': { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
     Cheque: { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
-    Cash: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
+    Cash: { bg: '#fefce8', color: '#854d0e', border: '#fef08a' },
     'Demand Draft': { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
   };
 
@@ -127,9 +137,11 @@ export default function FeesPage() {
   // Payment Form state
   const [paymentStudentId, setPaymentStudentId] = useState<string>(selectedStudentId);
   const [payAmountRupees, setPayAmountRupees] = useState('');
-  const [payMethod, setPayMethod] = useState<FeePayment['method']>('NEFT');
+  const [payMethod, setPayMethod] = useState<FeePayment['method']>('UPI QR');
   const [payReference, setPayReference] = useState('');
   const [payNotes, setPayNotes] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [copiedVpa, setCopiedVpa] = useState(false);
 
   // Refund Form state
   const [refundRupees, setRefundRupees] = useState('');
@@ -142,6 +154,45 @@ export default function FeesPage() {
   const activeStudent: Student = useMemo(() => {
     return state.students.find(s => s.id === selectedStudentId) || state.students[0];
   }, [state.students, selectedStudentId]);
+
+  // Target student for recording payment
+  const paymentTargetStudent: Student = useMemo(() => {
+    return state.students.find(s => s.id === paymentStudentId) || activeStudent;
+  }, [state.students, paymentStudentId, activeStudent]);
+
+  const paymentTargetLedger: StudentLedgerSummary = useMemo(() => {
+    return computeStudentLedger(paymentTargetStudent, state.feePayments, currentDate);
+  }, [paymentTargetStudent, state.feePayments, currentDate]);
+
+  // Dynamic UPI Deep Link string based on live entered amount
+  const upiPayUri = useMemo(() => {
+    const amtNum = Math.max(0, parseFloat(payAmountRupees) || 0);
+    const vpa = 'poddarcollege.fee@icici';
+    const payeeName = 'Poddar International College';
+    const note = `Fee-${paymentTargetStudent.id}-${paymentTargetStudent.name.split(' ')[0]}`.slice(0, 30);
+    return `upi://pay?pa=${vpa}&pn=${encodeURIComponent(payeeName)}&am=${amtNum.toFixed(2)}&cu=INR&tn=${encodeURIComponent(note)}`;
+  }, [payAmountRupees, paymentTargetStudent]);
+
+  // Generate live Dynamic QR Code whenever amount, target student, or method changes
+  useEffect(() => {
+    if (payMethod === 'UPI QR' || payMethod === 'UPI') {
+      const amtNum = parseFloat(payAmountRupees) || 0;
+      if (amtNum > 0) {
+        QRCode.toDataURL(upiPayUri, {
+          width: 220,
+          margin: 1,
+          color: {
+            dark: '#0B1D3A',
+            light: '#FFFFFF',
+          },
+        })
+          .then(url => setQrDataUrl(url))
+          .catch(err => console.error('Failed to generate QR code:', err));
+      } else {
+        setQrDataUrl('');
+      }
+    }
+  }, [upiPayUri, payMethod, payAmountRupees]);
 
   // Selected student's computed ledger
   const activeStudentLedger: StudentLedgerSummary = useMemo(() => {
@@ -209,8 +260,9 @@ export default function FeesPage() {
     const student = state.students.find(s => s.id === studentId) || activeStudent;
     const ledger = computeStudentLedger(student, state.feePayments, currentDate);
     setPaymentStudentId(student.id);
-    setPayMethod(student.plan.preferredMethod || 'NEFT');
-    setPayAmountRupees(String(ledger.dueNowPaise > 0 ? ledger.dueNowPaise / 100 : ledger.remainingPaise / 100));
+    setPayMethod('UPI QR');
+    const defaultAmt = ledger.remainingPaise > 0 ? (ledger.dueNowPaise > 0 ? ledger.dueNowPaise / 100 : ledger.remainingPaise / 100) : 0;
+    setPayAmountRupees(defaultAmt > 0 ? String(defaultAmt) : '');
     setPayReference('');
     setPayNotes('');
     setPaymentModalOpen(true);
@@ -1045,87 +1097,389 @@ export default function FeesPage() {
         </span>
       </div>
 
-      {/* MODAL 1: Record Student Payment */}
-      <Dialog open={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title="Record a student payment">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <p style={{ fontSize: '12px', color: '#64748b' }}>
-            Recording payment receipt for <strong>{activeStudent.name}</strong> ({activeStudent.id})
-          </p>
+      {/* MODAL 1: Record Student Payment with Dynamic UPI QR & Full Settlement Quick-Action */}
+      <Dialog
+        open={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        title="Record a student payment"
+        subtitle={`Receipt creation for ${paymentTargetStudent.name} (${paymentTargetStudent.id})`}
+        maxWidth={payMethod === 'UPI QR' || payMethod === 'UPI' ? '700px' : '520px'}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Student Account Context Strip */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
+              padding: '10px 14px',
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0B1D3A' }}>
+                {paymentTargetStudent.name}
+                <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, color: '#64748b' }}>
+                  ({paymentTargetStudent.id})
+                </span>
+              </div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                {paymentTargetStudent.programme} · Sem {paymentTargetStudent.semester}
+              </div>
+            </div>
 
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
-              Amount (₹)*
-            </label>
-            <input
-              type="number"
-              value={payAmountRupees}
-              onChange={e => setPayAmountRupees(e.target.value)}
-              placeholder="0.00"
-              style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-            />
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Total Outstanding
+                </span>
+                <strong style={{ fontSize: '13px', color: paymentTargetLedger.remainingPaise > 0 ? '#b91c1c' : '#15803d' }}>
+                  {formatINR(paymentTargetLedger.remainingPaise)}
+                </strong>
+              </div>
+              <div style={{ width: '1px', height: '24px', backgroundColor: '#cbd5e1' }} />
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Due Now
+                </span>
+                <strong style={{ fontSize: '13px', color: paymentTargetLedger.dueNowPaise > 0 ? '#c2410c' : '#64748b' }}>
+                  {formatINR(paymentTargetLedger.dueNowPaise)}
+                </strong>
+              </div>
+            </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
-                Payment Method*
-              </label>
-              <select
-                value={payMethod}
-                onChange={e => setPayMethod(e.target.value as FeePayment['method'])}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', backgroundColor: '#ffffff' }}
+          {/* Main Form & Dynamic QR Split */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: payMethod === 'UPI QR' || payMethod === 'UPI' ? '1fr 240px' : '1fr',
+              gap: '14px',
+              alignItems: 'start',
+            }}
+          >
+            {/* Left Column: Form Controls */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Amount Input with Quick-Settlement Chips */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46' }}>
+                    Amount (₹)*
+                  </label>
+                  {/* Quick Settlement Action Buttons */}
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {paymentTargetLedger.remainingPaise > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPayAmountRupees(String(paymentTargetLedger.remainingPaise / 100))}
+                        style={{
+                          fontSize: '10.5px',
+                          fontWeight: 600,
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          background: '#ecfdf5',
+                          border: '1px solid #a7f3d0',
+                          color: '#047857',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                        }}
+                        title="Fill total remaining balance to mark account fully paid"
+                      >
+                        <Sparkles size={11} />
+                        Fully Paid ({formatINR(paymentTargetLedger.remainingPaise)})
+                      </button>
+                    )}
+                    {paymentTargetLedger.dueNowPaise > 0 && paymentTargetLedger.dueNowPaise !== paymentTargetLedger.remainingPaise && (
+                      <button
+                        type="button"
+                        onClick={() => setPayAmountRupees(String(paymentTargetLedger.dueNowPaise / 100))}
+                        style={{
+                          fontSize: '10.5px',
+                          fontWeight: 600,
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          background: '#fff7ed',
+                          border: '1px solid #fed7aa',
+                          color: '#c2410c',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Due Now ({formatINR(paymentTargetLedger.dueNowPaise)})
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '10px', top: '7px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
+                    ₹
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    value={payAmountRupees}
+                    onChange={e => setPayAmountRupees(e.target.value)}
+                    placeholder="0.00"
+                    style={{
+                      width: '100%',
+                      padding: '7px 12px 7px 24px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#0B1D3A',
+                    }}
+                  />
+                </div>
+
+                {/* Settlement Feedback */}
+                {parseFloat(payAmountRupees) > 0 && (
+                  <div style={{ marginTop: '3px', fontSize: '11px' }}>
+                    {toPaise(payAmountRupees) >= paymentTargetLedger.remainingPaise ? (
+                      <span style={{ color: '#15803d', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle2 size={12} /> Full Settlement: Student account will be marked 100% "Paid in full"
+                      </span>
+                    ) : (
+                      <span style={{ color: '#475569' }}>
+                        Remaining balance after this receipt: <strong>{formatINR(Math.max(0, paymentTargetLedger.remainingPaise - toPaise(payAmountRupees)))}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Method Selector */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '3px' }}>
+                  Payment Method*
+                </label>
+                <select
+                  value={payMethod}
+                  onChange={e => setPayMethod(e.target.value as FeePayment['method'])}
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '12px',
+                    backgroundColor: '#ffffff',
+                    fontWeight: 500,
+                  }}
+                >
+                  <option value="UPI QR">UPI QR Code (Instant Scan & Pay)</option>
+                  <option value="UPI">UPI (Virtual ID / VPA)</option>
+                  <option value="Net Banking">Net Banking</option>
+                  <option value="Debit Card">Debit Card</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="NEFT">NEFT</option>
+                  <option value="Bank transfer">Bank Transfer</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Demand Draft">Demand Draft</option>
+                </select>
+              </div>
+
+              {/* UTR / Reference */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46' }}>
+                    UTR / Receipt Reference*
+                  </label>
+                  {(payMethod === 'UPI QR' || payMethod === 'UPI') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const randomTxn = `UPI/${currentDate.replaceAll('-', '')}/${Math.floor(100000 + Math.random() * 900000)}`;
+                        setPayReference(randomTxn);
+                        showToast('Simulated UTR Generated', `${randomTxn} filled into reference.`, 'info');
+                      }}
+                      style={{
+                        fontSize: '10.5px',
+                        fontWeight: 600,
+                        background: 'none',
+                        border: 'none',
+                        color: '#0B1D3A',
+                        textDecoration: 'underline',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      ⚡ Auto-fill Demo UTR
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={payReference}
+                  onChange={e => setPayReference(e.target.value)}
+                  placeholder="e.g. UPI/20261113/982134 or Cheque No."
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '12px',
+                  }}
+                />
+              </div>
+
+              {/* Internal Notes */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '3px' }}>
+                  Internal Notes / Ledger Remarks (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={payNotes}
+                  onChange={e => setPayNotes(e.target.value)}
+                  placeholder="e.g. Counter fee deposit / Sem 1 fee"
+                  style={{
+                    width: '100%',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '12px',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Right Column: Dynamic UPI QR Card (Visible for UPI QR & UPI) */}
+            {(payMethod === 'UPI QR' || payMethod === 'UPI') && (
+              <div
+                style={{
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '10px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  gap: '6px',
+                }}
               >
-                <option value="NEFT">NEFT</option>
-                <option value="UPI">UPI</option>
-                <option value="Bank transfer">Bank Transfer</option>
-                <option value="Cheque">Cheque</option>
-                <option value="Cash">Cash</option>
-                <option value="Demand Draft">Demand Draft</option>
-              </select>
-            </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#0B1D3A', fontWeight: 700, fontSize: '11.5px' }}>
+                  <QrCode size={14} color="#C6A45A" />
+                  <span>Dynamic UPI Scan & Pay</span>
+                </div>
 
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
-                UTR / Receipt Reference*
-              </label>
-              <input
-                type="text"
-                value={payReference}
-                onChange={e => setPayReference(e.target.value)}
-                placeholder="Unique reference"
-                style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
-              />
-            </div>
+                {/* Amount Header on QR */}
+                <div style={{ backgroundColor: '#0B1D3A', color: '#C6A45A', padding: '3px 8px', borderRadius: '5px', fontSize: '12px', fontWeight: 700 }}>
+                  ₹ {parseFloat(payAmountRupees || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+
+                {/* Live Scannable QR Code Image */}
+                <div
+                  style={{
+                    width: '140px',
+                    height: '140px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  {parseFloat(payAmountRupees) > 0 && qrDataUrl ? (
+                    <img
+                      src={qrDataUrl}
+                      alt="UPI Payment QR Code"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <div style={{ fontSize: '10.5px', color: '#94a3b8', padding: '8px' }}>
+                      Enter amount to generate QR
+                    </div>
+                  )}
+                </div>
+
+                {/* Merchant & UPI App Indicators */}
+                <div style={{ fontSize: '10px', color: '#64748b' }}>
+                  Scan with <strong>GPay, PhonePe, Paytm, BHIM</strong>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    fontSize: '9.5px',
+                    color: '#475569',
+                    backgroundColor: '#ffffff',
+                    padding: '3px 6px',
+                    borderRadius: '4px',
+                    border: '1px solid #e2e8f0',
+                    width: '100%',
+                  }}
+                >
+                  <span>UPI: poddarcollege.fee@icici</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText('poddarcollege.fee@icici');
+                      setCopiedVpa(true);
+                      setTimeout(() => setCopiedVpa(false), 2000);
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#0B1D3A' }}
+                    title="Copy UPI ID"
+                  >
+                    {copiedVpa ? <Check size={10} color="#15803d" /> : <Copy size={10} />}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '4px' }}>
-              Internal Notes / Ledger Remarks
-            </label>
-            <textarea
-              value={payNotes}
-              onChange={e => setPayNotes(e.target.value)}
-              placeholder="Optional remarks"
-              rows={2}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-            <button
-              onClick={() => setPaymentModalOpen(false)}
-              className="button secondary"
-              style={{ padding: '8px 14px', fontSize: '12px' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleRecordPayment}
-              className="button primary"
-              style={{ padding: '8px 16px', fontSize: '12px' }}
-            >
-              Save Payment
-            </button>
+          {/* Modal Action Footer */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderTop: '1px solid #e2e8f0',
+              paddingTop: '12px',
+              marginTop: '4px',
+            }}
+          >
+            <span style={{ fontSize: '11px', color: '#64748b' }}>
+              Receipt will be logged under <strong>{state.settings.currentRole}</strong>
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setPaymentModalOpen(false)}
+                className="button secondary"
+                style={{ padding: '7px 14px', fontSize: '12px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRecordPayment}
+                className="button primary"
+                disabled={!payAmountRupees || parseFloat(payAmountRupees) <= 0 || !payReference.trim()}
+                style={{
+                  padding: '7px 16px',
+                  fontSize: '12px',
+                  opacity: (!payAmountRupees || parseFloat(payAmountRupees) <= 0 || !payReference.trim()) ? 0.6 : 1,
+                  cursor: (!payAmountRupees || parseFloat(payAmountRupees) <= 0 || !payReference.trim()) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Save Payment & Issue Receipt
+              </button>
+            </div>
           </div>
         </div>
       </Dialog>
