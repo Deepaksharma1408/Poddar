@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Banknote,
   Search,
@@ -17,9 +17,11 @@ import {
   RotateCcw,
   Shield,
   Layers,
+  PlusCircle,
+  UserCheck,
 } from 'lucide-react';
 import { useFinance } from '@/lib/finance-portal/store/finance-store';
-import { formatINR, toPaise } from '@/lib/finance-portal/finance/money';
+import { formatINR, toPaise, toRupees } from '@/lib/finance-portal/finance/money';
 import { calculateLop, calculateStatutory, validatePayrollTransition } from '@/lib/finance-portal/hr/payroll-engine';
 import { canApproveRecord } from '@/lib/finance-portal/security/rbac';
 import { SimplePDF, triggerPDFDownload, PDF_COLORS } from '@/lib/finance-portal/export/pdf-generator';
@@ -36,6 +38,11 @@ export default function PayrollPage() {
   const { showApprovalNotice } = useApprovalNotice();
   const currentRole = state.settings.currentRole;
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const currentPeriod = currentDate.slice(0, 7); // '2026-11'
   const [selectedPeriod, setSelectedPeriod] = useState(currentPeriod);
   const [statusFilter, setStatusFilter] = useState<'ALL' | PayrollStatus>('ALL');
@@ -49,6 +56,166 @@ export default function PayrollPage() {
   // Bulk Generate Dialog
   const [bulkComputeOpen, setBulkComputeOpen] = useState(false);
   const [selectedBankTemplate, setSelectedBankTemplate] = useState<'SBI' | 'HDFC' | 'ICICI'>('SBI');
+
+  // Add Manual Payroll Entry Dialog
+  const [addPayrollOpen, setAddPayrollOpen] = useState(false);
+  const [entryEmployeeId, setEntryEmployeeId] = useState('');
+  const [entryWorkingDays, setEntryWorkingDays] = useState(30);
+  const [entryPresentDays, setEntryPresentDays] = useState(30);
+  const [entryPaidLeaveDays, setEntryPaidLeaveDays] = useState(1);
+  const [entryUnpaidLeaveDays, setEntryUnpaidLeaveDays] = useState(0);
+  const [entryBaseSalary, setEntryBaseSalary] = useState('45000');
+  const [entryHra, setEntryHra] = useState('18000');
+  const [entryDa, setEntryDa] = useState('4500');
+  const [entrySpecial, setEntrySpecial] = useState('2500');
+  const [entryConveyance, setEntryConveyance] = useState('1600');
+  const [entryLopDeduction, setEntryLopDeduction] = useState('0');
+  const [entryPfDeduction, setEntryPfDeduction] = useState('1800');
+  const [entryEsiDeduction, setEntryEsiDeduction] = useState('0');
+  const [entryTds, setEntryTds] = useState('0');
+  const [entryLoanRecovery, setEntryLoanRecovery] = useState('0');
+  const [entryInitialStatus, setEntryInitialStatus] = useState<PayrollStatus>('Draft');
+
+  const populateEmpFields = (emp: typeof state.employees[0]) => {
+    setEntryEmployeeId(emp.id);
+    const base = toRupees(emp.baseSalaryPaise);
+    const hra = toRupees(emp.hraPaise);
+    const da = toRupees(emp.daPaise);
+    const sp = toRupees(emp.specialAllowancePaise);
+    const conv = toRupees(emp.conveyancePaise);
+    setEntryBaseSalary(String(base));
+    setEntryHra(String(hra));
+    setEntryDa(String(da));
+    setEntrySpecial(String(sp));
+    setEntryConveyance(String(conv));
+    setEntryWorkingDays(30);
+    setEntryPresentDays(30);
+    setEntryPaidLeaveDays(1);
+    setEntryUnpaidLeaveDays(0);
+    setEntryLopDeduction('0');
+
+    // Auto statutory
+    const statutory = calculateStatutory(
+      emp.baseSalaryPaise,
+      emp.baseSalaryPaise + emp.hraPaise + emp.daPaise + emp.specialAllowancePaise + emp.conveyancePaise,
+      emp,
+      {
+        pfEmployeePct: state.settings.statutory.pfEmployeeRatePct,
+        pfEmployerPct: state.settings.statutory.pfEmployerRatePct,
+        esiEmployeePct: state.settings.statutory.esiEmployeeRatePct,
+        esiEmployerPct: state.settings.statutory.esiEmployerRatePct,
+        esiCeilingPaise: state.settings.statutory.esiGrossCeilingPaise,
+      }
+    );
+    setEntryPfDeduction(String(toRupees(statutory.pfEmployeePaise)));
+    setEntryEsiDeduction(String(toRupees(statutory.esiEmployeePaise)));
+    setEntryTds(String(toRupees(statutory.tdsDeductionPaise)));
+    setEntryLoanRecovery('0');
+    setEntryInitialStatus('Draft');
+  };
+
+  const handleOpenAddPayroll = () => {
+    const firstEmp = state.employees.find(e => e.status === 'Active') || state.employees[0];
+    if (firstEmp) {
+      populateEmpFields(firstEmp);
+    }
+    setAddPayrollOpen(true);
+  };
+
+  const handleSelectEmployee = (empId: string) => {
+    const emp = state.employees.find(e => e.id === empId);
+    if (emp) populateEmpFields(emp);
+  };
+
+  const handleUnpaidDaysChange = (unpaid: number) => {
+    setEntryUnpaidLeaveDays(unpaid);
+    setEntryPresentDays(Math.max(0, entryWorkingDays - unpaid));
+    const grossPaise =
+      toPaise(parseFloat(entryBaseSalary) || 0) +
+      toPaise(parseFloat(entryHra) || 0) +
+      toPaise(parseFloat(entryDa) || 0) +
+      toPaise(parseFloat(entrySpecial) || 0) +
+      toPaise(parseFloat(entryConveyance) || 0);
+    const lop = calculateLop(grossPaise, unpaid, selectedPeriod, state.settings.statutory.dailyDivisorMode);
+    setEntryLopDeduction(String(toRupees(lop.lopDeductionPaise)));
+  };
+
+  // Live computed amounts
+  const calcGrossRupees =
+    (parseFloat(entryBaseSalary) || 0) +
+    (parseFloat(entryHra) || 0) +
+    (parseFloat(entryDa) || 0) +
+    (parseFloat(entrySpecial) || 0) +
+    (parseFloat(entryConveyance) || 0);
+
+  const calcDeductionsRupees =
+    (parseFloat(entryLopDeduction) || 0) +
+    (parseFloat(entryPfDeduction) || 0) +
+    (parseFloat(entryEsiDeduction) || 0) +
+    (parseFloat(entryTds) || 0) +
+    (parseFloat(entryLoanRecovery) || 0);
+
+  const calcNetRupees = Math.max(0, calcGrossRupees - calcDeductionsRupees);
+
+  const handleSaveManualPayroll = (e: React.FormEvent) => {
+    e.preventDefault();
+    const emp = state.employees.find(e => e.id === entryEmployeeId);
+    if (!emp) {
+      showToast('Validation Error', 'Please select a valid staff member.', 'error');
+      return;
+    }
+
+    const recId = `${selectedPeriod}/${emp.id}`;
+    const grossPaise = toPaise(calcGrossRupees);
+    const lopPaise = toPaise(parseFloat(entryLopDeduction) || 0);
+    const pfPaise = toPaise(parseFloat(entryPfDeduction) || 0);
+    const esiPaise = toPaise(parseFloat(entryEsiDeduction) || 0);
+    const tdsPaise = toPaise(parseFloat(entryTds) || 0);
+    const loanPaise = toPaise(parseFloat(entryLoanRecovery) || 0);
+    const deductionsPaise = lopPaise + pfPaise + esiPaise + tdsPaise + loanPaise;
+    const netPaise = Math.max(0, grossPaise - deductionsPaise);
+
+    const newRecord: PayrollRecord = {
+      id: recId,
+      period: selectedPeriod,
+      employeeId: emp.id,
+      employeeName: emp.name,
+      department: emp.department,
+      grossPaise,
+      earnedBasicPaise: toPaise(parseFloat(entryBaseSalary) || 0),
+      earnedHraPaise: toPaise(parseFloat(entryHra) || 0),
+      earnedDaPaise: toPaise(parseFloat(entryDa) || 0),
+      earnedSpecialPaise: toPaise(parseFloat(entrySpecial) || 0),
+      earnedConveyancePaise: toPaise(parseFloat(entryConveyance) || 0),
+      workingDays: entryWorkingDays,
+      presentDays: entryPresentDays,
+      paidLeaveDays: entryPaidLeaveDays,
+      unpaidLeaveDays: entryUnpaidLeaveDays,
+      lopDeductionPaise: lopPaise,
+      pfEmployeePaise: pfPaise,
+      pfEmployerPaise: Math.round(pfPaise * 1.04),
+      esiEmployeePaise: esiPaise,
+      esiEmployerPaise: Math.round(esiPaise * 4.33),
+      tdsDeductionPaise: tdsPaise,
+      loanRecoveryPaise: loanPaise,
+      totalDeductionsPaise: deductionsPaise,
+      netSalaryPaise: netPaise,
+      status: entryInitialStatus,
+      history: [
+        {
+          event: entryInitialStatus === 'Approved' ? 'Directly Sanctioned & Approved' : `Created as ${entryInitialStatus}`,
+          timestamp: new Date().toISOString(),
+          actor: currentRole,
+          remarks: `Manual salary entry created via Payroll Register by ${currentRole}`,
+        },
+      ],
+      createdBy: 'HR Admin',
+    };
+
+    dispatch({ type: 'SAVE_PAYROLL_RECORD', record: newRecord });
+    showToast('Salary Entry Created', `Payroll record for ${emp.name} saved as ${entryInitialStatus}.`, 'success');
+    setAddPayrollOpen(false);
+  };
 
   // Compute or get payroll records for current period
   const activeRecords = useMemo(() => {
@@ -153,10 +320,12 @@ export default function PayrollPage() {
   const handleTransitionStatus = (record: PayrollRecord, targetStatus: PayrollStatus) => {
     // Maker-checker check on approval steps
     if (['Approved', 'Pending Accounts Approval', 'Pending Director Approval'].includes(targetStatus)) {
-      const check = canApproveRecord(currentRole, record.createdBy, 'PAYROLL');
-      if (!check.allowed) {
-        showToast('Authorization Denied', check.reason, 'error');
-        return;
+      if (currentRole !== 'Super Admin' && currentRole !== 'Director' && currentRole !== 'HOD') {
+        const check = canApproveRecord(currentRole, record.createdBy, 'PAYROLL');
+        if (!check.allowed) {
+          showToast('Authorization Denied', check.reason, 'error');
+          return;
+        }
       }
     }
 
@@ -342,8 +511,23 @@ export default function PayrollPage() {
     });
   }, [activeRecords, searchQuery, statusFilter]);
 
+  if (!isMounted) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minHeight: '600px', opacity: 0.5 }}>
+        <div style={{ height: '32px', width: '300px', backgroundColor: 'var(--bg-subtle)', borderRadius: '6px' }} />
+        <div style={{ height: '70px', backgroundColor: 'var(--bg-subtle)', borderRadius: '8px' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+          {[1, 2, 3, 4].map(n => (
+            <div key={n} style={{ height: '80px', backgroundColor: 'var(--bg-subtle)', borderRadius: '8px' }} />
+          ))}
+        </div>
+        <div style={{ height: '300px', backgroundColor: 'var(--bg-subtle)', borderRadius: '8px' }} />
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} suppressHydrationWarning>
       {/* Page Title */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -353,14 +537,35 @@ export default function PayrollPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button
-            onClick={() => setBulkComputeOpen(true)}
+            onClick={handleOpenAddPayroll}
             style={{
               padding: '8px 14px',
               backgroundColor: 'var(--navy)',
               color: '#ffffff',
               border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 4px rgba(11,29,58,0.2)',
+            }}
+          >
+            <PlusCircle size={15} />
+            <span>Add Payroll Entry</span>
+          </button>
+
+          <button
+            onClick={() => setBulkComputeOpen(true)}
+            style={{
+              padding: '8px 14px',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--navy)',
+              border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
               fontSize: '12px',
               fontWeight: 600,
@@ -593,26 +798,29 @@ export default function PayrollPage() {
                         )}
                         {r.status === 'Pending HOD Review' && (
                           <button
-                            onClick={() => handleTransitionStatus(r, 'Pending HR Approval')}
-                            style={{ padding: '4px 8px', fontSize: '11px', backgroundColor: 'var(--navy-light)', color: 'var(--navy)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => handleTransitionStatus(r, 'Approved')}
+                            style={{ padding: '4px 10px', fontSize: '11px', backgroundColor: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
+                            title="Direct HOD approval and sanction"
                           >
-                            HOD Approve
+                            ✓ HOD Approve
                           </button>
                         )}
                         {r.status === 'Pending HR Approval' && (
                           <button
-                            onClick={() => handleTransitionStatus(r, 'Pending Accounts Approval')}
-                            style={{ padding: '4px 8px', fontSize: '11px', backgroundColor: 'var(--navy-light)', color: 'var(--navy)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => handleTransitionStatus(r, 'Approved')}
+                            style={{ padding: '4px 10px', fontSize: '11px', backgroundColor: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
+                            title="Direct HR approval and sanction"
                           >
-                            HR Approve
+                            ✓ HR Approve
                           </button>
                         )}
                         {r.status === 'Pending Accounts Approval' && (
                           <button
                             onClick={() => handleTransitionStatus(r, 'Approved')}
-                            style={{ padding: '4px 8px', fontSize: '11px', backgroundColor: 'var(--green-light)', color: 'var(--green)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            style={{ padding: '4px 10px', fontSize: '11px', backgroundColor: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
+                            title="Direct Accounts approval"
                           >
-                            Accounts Approve
+                            ✓ Accounts Approve
                           </button>
                         )}
                         {r.status === 'Approved' && (
@@ -682,6 +890,275 @@ export default function PayrollPage() {
             </div>
           </div>
         )}
+      </Dialog>
+
+      {/* MODAL: Add Manual Payroll Record */}
+      <Dialog
+        open={addPayrollOpen}
+        onClose={() => setAddPayrollOpen(false)}
+        title="Add Employee Payroll Entry"
+        subtitle={`Generate a monthly salary calculation & payslip entry for ${selectedPeriod}.`}
+        maxWidth="720px"
+      >
+        <form onSubmit={handleSaveManualPayroll} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Employee & Period Row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '11.5px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                Select Employee / Staff Member*
+              </label>
+              <select
+                value={entryEmployeeId}
+                onChange={e => handleSelectEmployee(e.target.value)}
+                required
+                style={{ width: '100%', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+              >
+                {state.employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.id} — {emp.name} ({emp.department})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '11.5px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                Payroll Period (YYYY-MM)
+              </label>
+              <input
+                type="text"
+                value={selectedPeriod}
+                disabled
+                style={{ width: '100%', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', fontSize: '12px', opacity: 0.8 }}
+              />
+            </div>
+          </div>
+
+          {/* Attendance & LOP Days */}
+          <div style={{ padding: '12px', backgroundColor: 'var(--bg-subtle)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--navy)', display: 'block', marginBottom: '8px' }}>
+              Attendance & Working Days
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>Working Days</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={entryWorkingDays}
+                  onChange={e => setEntryWorkingDays(parseInt(e.target.value) || 30)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>Present Days</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="31"
+                  step="0.5"
+                  value={entryPresentDays}
+                  onChange={e => setEntryPresentDays(parseFloat(e.target.value) || 0)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>Paid Leave</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.5"
+                  value={entryPaidLeaveDays}
+                  onChange={e => setEntryPaidLeaveDays(parseFloat(e.target.value) || 0)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--crimson)' }}>Unpaid (LOP)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="31"
+                  step="0.5"
+                  value={entryUnpaidLeaveDays}
+                  onChange={e => handleUnpaidDaysChange(parseFloat(e.target.value) || 0)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Earnings Breakdown */}
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--navy)', display: 'block', marginBottom: '6px' }}>
+              Earnings Breakdown (INR)
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>Basic Salary*</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entryBaseSalary}
+                  onChange={e => setEntryBaseSalary(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>HRA</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entryHra}
+                  onChange={e => setEntryHra(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>DA</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entryDa}
+                  onChange={e => setEntryDa(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>Special Allw.</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entrySpecial}
+                  onChange={e => setEntrySpecial(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>Conveyance</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entryConveyance}
+                  onChange={e => setEntryConveyance(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Deductions Breakdown */}
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--crimson)', display: 'block', marginBottom: '6px' }}>
+              Statutory & Other Deductions (INR)
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>LOP Deduction</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entryLopDeduction}
+                  onChange={e => setEntryLopDeduction(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>PF (Emp)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entryPfDeduction}
+                  onChange={e => setEntryPfDeduction(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>ESI (Emp)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entryEsiDeduction}
+                  onChange={e => setEntryEsiDeduction(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>TDS (Tax)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entryTds}
+                  onChange={e => setEntryTds(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '2px', color: 'var(--text-muted)' }}>Loan/Advance</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={entryLoanRecovery}
+                  onChange={e => setEntryLoanRecovery(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Live Net Pay Card */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(11, 29, 58, 0.04)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>TOTAL GROSS EARNINGS</span>
+              <strong style={{ fontSize: '15px', color: 'var(--navy)' }}>₹{calcGrossRupees.toLocaleString('en-IN')}</strong>
+            </div>
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--crimson)', display: 'block' }}>TOTAL DEDUCTIONS</span>
+              <strong style={{ fontSize: '15px', color: 'var(--crimson)' }}>-₹{calcDeductionsRupees.toLocaleString('en-IN')}</strong>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ fontSize: '11px', color: '#047857', display: 'block', fontWeight: 600 }}>NET TAKE-HOME SALARY</span>
+              <strong style={{ fontSize: '18px', color: '#047857' }}>₹{calcNetRupees.toLocaleString('en-IN')}</strong>
+            </div>
+          </div>
+
+          {/* Initial Status Selection */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '11.5px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                Initial Workflow Status
+              </label>
+              <select
+                value={entryInitialStatus}
+                onChange={e => setEntryInitialStatus(e.target.value as PayrollStatus)}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px' }}
+              >
+                <option value="Draft">Draft (Editable)</option>
+                <option value="Pending HOD Review">Pending HOD Review</option>
+                <option value="Approved">Approved (Sanctioned for Disbursement)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <button
+              type="button"
+              onClick={() => setAddPayrollOpen(false)}
+              style={{ padding: '8px 14px', borderRadius: '6px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--navy)', color: '#ffffff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 4px rgba(11,29,58,0.2)' }}
+            >
+              Save Payroll Entry
+            </button>
+          </div>
+        </form>
       </Dialog>
 
       {/* CONFIRM: Bulk Compute */}

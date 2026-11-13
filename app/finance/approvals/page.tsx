@@ -195,7 +195,7 @@ export default function ApprovalsInboxPage() {
     // Maker-checker validation: Use correct action type (PAYROLL for payroll records, BILL for bills)
     const actionType = item.sourceType === 'PAYROLL' ? 'PAYROLL' : 'BILL';
     const makerChecker = canApproveRecord(currentRole, item.submittedByRole, actionType);
-    if (!makerChecker.allowed && currentRole !== 'Super Admin' && currentRole !== 'Director') {
+    if (!makerChecker.allowed && currentRole !== 'Super Admin' && currentRole !== 'Director' && currentRole !== item.nextApproverTier) {
       showToast('Maker-Checker Lock', makerChecker.reason || 'You cannot approve a request you created.', 'error');
       return;
     }

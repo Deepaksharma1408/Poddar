@@ -771,6 +771,42 @@ export const SEED_DEPARTMENTS: InstitutionalDepartment[] = [
     annualBudgetPaise: 50000000,
     status: 'Active',
   },
+  {
+    id: 'DEPT-HR',
+    code: 'HR',
+    name: 'Human Resources & Personnel Admin',
+    hodName: 'Dr. Neha Agarwal (HR Admin)',
+    hodEmail: 'hr.admin@poddarinstitute.org',
+    category: 'Administrative',
+    facultyCount: 8,
+    studentCount: 0,
+    annualBudgetPaise: 60000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-MGMT-BOARD',
+    code: 'MGMT',
+    name: 'Institutional Management & Governing Board',
+    hodName: 'Dr. Anand Poddar (Chairman & Management)',
+    hodEmail: 'management@poddarinstitute.org',
+    category: 'Administrative',
+    facultyCount: 5,
+    studentCount: 0,
+    annualBudgetPaise: 300000000,
+    status: 'Active',
+  },
+  {
+    id: 'DEPT-HOD-COUNCIL',
+    code: 'HOD',
+    name: 'Office of Deans & HOD Academic Council',
+    hodName: 'Prof. M.L. Meena (Head of HOD Council)',
+    hodEmail: 'hod.council@poddarinstitute.org',
+    category: 'Teaching / Academic',
+    facultyCount: 16,
+    studentCount: 0,
+    annualBudgetPaise: 75000000,
+    status: 'Active',
+  },
 ];
 
 export type FinanceAction =
@@ -1424,7 +1460,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             defaulterFollowUps: Array.isArray(parsed.defaulterFollowUps) && parsed.defaulterFollowUps.length > 0 ? parsed.defaulterFollowUps : fresh.defaulterFollowUps,
             reminderDispatchLogs: Array.isArray(parsed.reminderDispatchLogs) && parsed.reminderDispatchLogs.length > 0 ? parsed.reminderDispatchLogs : fresh.reminderDispatchLogs,
             scholarshipApplications: Array.isArray(parsed.scholarshipApplications) && parsed.scholarshipApplications.length > 0 ? parsed.scholarshipApplications : fresh.scholarshipApplications,
-            departments: Array.isArray(parsed.departments) && parsed.departments.length > 0 ? parsed.departments : fresh.departments,
+            departments: Array.isArray(parsed.departments) && parsed.departments.length > 0
+              ? [
+                  ...parsed.departments,
+                  ...fresh.departments.filter(fd => !parsed.departments.some((pd: any) => pd.id === fd.id || pd.code === fd.code))
+                ]
+              : fresh.departments,
           } as FinanceState;
         }
       }

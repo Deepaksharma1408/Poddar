@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -28,6 +28,12 @@ type DeptCategory = InstitutionalDepartment['category'];
 export default function DepartmentsPage() {
   const { state, dispatch } = useFinance();
   const { showToast } = useToast();
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const departments = state.departments || [];
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -169,8 +175,22 @@ export default function DepartmentsPage() {
     showToast('Department Removed', `${dept.name} deleted.`);
   };
 
+  if (!isMounted) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48, minHeight: '600px', opacity: 0.5 }}>
+        <div style={{ height: '36px', width: '320px', backgroundColor: 'var(--bg-subtle)', borderRadius: '6px' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {[1, 2, 3, 4].map(n => (
+            <div key={n} style={{ height: '90px', backgroundColor: 'var(--bg-subtle)', borderRadius: '8px' }} />
+          ))}
+        </div>
+        <div style={{ height: '320px', backgroundColor: 'var(--bg-subtle)', borderRadius: '8px' }} />
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }} suppressHydrationWarning>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
@@ -187,21 +207,48 @@ export default function DepartmentsPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <Link
             href="/finance/employees"
-            className="btn btn-secondary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, textDecoration: 'none' }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 15px',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--navy)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              textDecoration: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+            }}
           >
-            <Users size={16} />
+            <Users size={15} />
             <span>Staff Directory</span>
           </Link>
           <button
             onClick={() => { resetForm(); setIsAddOpen(true); }}
-            className="btn btn-primary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, background: 'var(--navy)', color: '#fff' }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 16px',
+              backgroundColor: 'var(--navy)',
+              color: '#ffffff',
+              border: '1px solid var(--navy)',
+              borderRadius: '6px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 2px 5px rgba(11,29,58,0.18)',
+              transition: 'all 0.15s ease',
+            }}
           >
-            <PlusCircle size={16} />
+            <PlusCircle size={15} />
             <span>Add Department</span>
           </button>
         </div>
@@ -658,14 +705,32 @@ export default function DepartmentsPage() {
             <button
               type="button"
               onClick={() => setIsAddOpen(false)}
-              className="btn btn-secondary"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-main)',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn btn-primary"
-              style={{ background: 'var(--navy)', color: '#fff' }}
+              style={{
+                padding: '8px 18px',
+                borderRadius: '6px',
+                border: 'none',
+                background: 'var(--navy)',
+                color: '#fff',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 5px rgba(11,29,58,0.2)',
+              }}
             >
               Save Department Record
             </button>
@@ -864,14 +929,32 @@ export default function DepartmentsPage() {
             <button
               type="button"
               onClick={() => setEditingDept(null)}
-              className="btn btn-secondary"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-main)',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn btn-primary"
-              style={{ background: 'var(--navy)', color: '#fff' }}
+              style={{
+                padding: '8px 18px',
+                borderRadius: '6px',
+                border: 'none',
+                background: 'var(--navy)',
+                color: '#fff',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 5px rgba(11,29,58,0.2)',
+              }}
             >
               Update Department
             </button>
