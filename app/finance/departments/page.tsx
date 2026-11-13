@@ -362,29 +362,29 @@ export default function DepartmentsPage() {
       </div>
 
       {/* Department Directory Table */}
-      <div className="card-surface" style={{ overflow: 'hidden' }}>
+      <div className="card-surface" style={{ borderRadius: 8, overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--navy)' }}>
             Institutional Departments & Academic Units
           </div>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            Poddar International College Official Hierarchy
+            ← Scroll horizontally to view all columns →
           </span>
         </div>
 
-        <div className="responsive-table">
-          <table className="data-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: 13 }}>
+        <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table className="data-table" style={{ width: '100%', minWidth: '1080px', textAlign: 'left', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>Code</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>Department Name</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>Category</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>Head of Dept (HOD)</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'center' }}>Staff</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'center' }}>Students</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Annual Budget</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'center' }}>Status</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Actions</th>
+              <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                <th style={{ padding: '12px 16px', fontWeight: 600, minWidth: '80px' }}>Code</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, minWidth: '220px' }}>Department Name</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, minWidth: '160px' }}>Category</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, minWidth: '220px' }}>Head of Dept (HOD)</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'center', minWidth: '70px' }}>Staff</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'center', minWidth: '90px' }}>Students</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right', minWidth: '140px' }}>Annual Budget</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'center', minWidth: '100px' }}>Status</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right', minWidth: '100px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -396,7 +396,7 @@ export default function DepartmentsPage() {
                 </tr>
               ) : (
                 filteredDepts.map(dept => (
-                  <tr key={dept.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <tr key={dept.id} style={{ borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
                     <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--navy)' }}>
                       <span style={{
                         display: 'inline-block',
