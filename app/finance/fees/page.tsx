@@ -138,6 +138,7 @@ export default function FeesPage() {
   const [paymentStudentId, setPaymentStudentId] = useState<string>(selectedStudentId);
   const [payAmountRupees, setPayAmountRupees] = useState('');
   const [payMethod, setPayMethod] = useState<FeePayment['method']>('UPI QR');
+  const [settlementMode, setSettlementMode] = useState<'FULLY_PAID' | 'DUE_NOW' | 'CUSTOM'>('DUE_NOW');
   const [payReference, setPayReference] = useState('');
   const [payNotes, setPayNotes] = useState('');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -261,7 +262,9 @@ export default function FeesPage() {
     const ledger = computeStudentLedger(student, state.feePayments, currentDate);
     setPaymentStudentId(student.id);
     setPayMethod('UPI QR');
-    const defaultAmt = ledger.remainingPaise > 0 ? (ledger.dueNowPaise > 0 ? ledger.dueNowPaise / 100 : ledger.remainingPaise / 100) : 0;
+    const hasDue = ledger.dueNowPaise > 0;
+    setSettlementMode(hasDue ? 'DUE_NOW' : 'FULLY_PAID');
+    const defaultAmt = hasDue ? ledger.dueNowPaise / 100 : ledger.remainingPaise / 100;
     setPayAmountRupees(defaultAmt > 0 ? String(defaultAmt) : '');
     setPayReference('');
     setPayNotes('');
@@ -1164,58 +1167,115 @@ export default function FeesPage() {
           >
             {/* Left Column: Form Controls */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {/* Amount Input with Quick-Settlement Chips */}
+              {/* 1. Payment Settlement Status Option Selector */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46' }}>
-                    Amount (₹)*
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#0B1D3A' }}>
+                    Payment Settlement Status*
                   </label>
-                  {/* Quick Settlement Action Buttons */}
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {paymentTargetLedger.remainingPaise > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setPayAmountRupees(String(paymentTargetLedger.remainingPaise / 100))}
-                        style={{
-                          fontSize: '10.5px',
-                          fontWeight: 600,
-                          padding: '2px 7px',
-                          borderRadius: '4px',
-                          background: '#ecfdf5',
-                          border: '1px solid #a7f3d0',
-                          color: '#047857',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                        }}
-                        title="Fill total remaining balance to mark account fully paid"
-                      >
-                        <Sparkles size={11} />
-                        Fully Paid ({formatINR(paymentTargetLedger.remainingPaise)})
-                      </button>
-                    )}
-                    {paymentTargetLedger.dueNowPaise > 0 && paymentTargetLedger.dueNowPaise !== paymentTargetLedger.remainingPaise && (
-                      <button
-                        type="button"
-                        onClick={() => setPayAmountRupees(String(paymentTargetLedger.dueNowPaise / 100))}
-                        style={{
-                          fontSize: '10.5px',
-                          fontWeight: 600,
-                          padding: '2px 7px',
-                          borderRadius: '4px',
-                          background: '#fff7ed',
-                          border: '1px solid #fed7aa',
-                          color: '#c2410c',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Due Now ({formatINR(paymentTargetLedger.dueNowPaise)})
-                      </button>
-                    )}
-                  </div>
+                  <span style={{ fontSize: '10.5px', color: '#64748b' }}>
+                    Current: <strong style={{ color: paymentTargetLedger.remainingPaise > 0 ? '#c2410c' : '#15803d' }}>{paymentTargetLedger.status}</strong>
+                  </span>
                 </div>
 
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                  {/* Option 1: Fully Paid */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettlementMode('FULLY_PAID');
+                      setPayAmountRupees(String(paymentTargetLedger.remainingPaise / 100));
+                    }}
+                    style={{
+                      padding: '7px 8px',
+                      borderRadius: '6px',
+                      border: settlementMode === 'FULLY_PAID' ? '2px solid #059669' : '1px solid #cbd5e1',
+                      backgroundColor: settlementMode === 'FULLY_PAID' ? '#ecfdf5' : '#ffffff',
+                      color: settlementMode === 'FULLY_PAID' ? '#047857' : '#334155',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '2px',
+                      transition: 'all 0.15s ease',
+                      boxShadow: settlementMode === 'FULLY_PAID' ? '0 2px 6px rgba(5, 150, 105, 0.15)' : 'none',
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <Sparkles size={11} /> Fully Paid
+                    </span>
+                    <small style={{ fontSize: '10px', fontWeight: 600, opacity: 0.85 }}>
+                      {formatINR(paymentTargetLedger.remainingPaise)}
+                    </small>
+                  </button>
+
+                  {/* Option 2: Due Now */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettlementMode('DUE_NOW');
+                      const due = paymentTargetLedger.dueNowPaise > 0 ? paymentTargetLedger.dueNowPaise / 100 : paymentTargetLedger.remainingPaise / 100;
+                      setPayAmountRupees(String(due));
+                    }}
+                    style={{
+                      padding: '7px 8px',
+                      borderRadius: '6px',
+                      border: settlementMode === 'DUE_NOW' ? '2px solid #ea580c' : '1px solid #cbd5e1',
+                      backgroundColor: settlementMode === 'DUE_NOW' ? '#fff7ed' : '#ffffff',
+                      color: settlementMode === 'DUE_NOW' ? '#c2410c' : '#334155',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '2px',
+                      transition: 'all 0.15s ease',
+                      boxShadow: settlementMode === 'DUE_NOW' ? '0 2px 6px rgba(234, 88, 12, 0.15)' : 'none',
+                    }}
+                  >
+                    <span>📅 Due Now</span>
+                    <small style={{ fontSize: '10px', fontWeight: 600, opacity: 0.85 }}>
+                      {formatINR(paymentTargetLedger.dueNowPaise)}
+                    </small>
+                  </button>
+
+                  {/* Option 3: Custom / Partial */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettlementMode('CUSTOM');
+                    }}
+                    style={{
+                      padding: '7px 8px',
+                      borderRadius: '6px',
+                      border: settlementMode === 'CUSTOM' ? '2px solid #0284c7' : '1px solid #cbd5e1',
+                      backgroundColor: settlementMode === 'CUSTOM' ? '#f0f9ff' : '#ffffff',
+                      color: settlementMode === 'CUSTOM' ? '#0369a1' : '#334155',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '2px',
+                      transition: 'all 0.15s ease',
+                      boxShadow: settlementMode === 'CUSTOM' ? '0 2px 6px rgba(2, 132, 199, 0.15)' : 'none',
+                    }}
+                  >
+                    <span>✏️ Custom Amount</span>
+                    <small style={{ fontSize: '10px', fontWeight: 600, opacity: 0.85 }}>Partial Pay</small>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Amount Input Field */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#182e46', display: 'block', marginBottom: '3px' }}>
+                  Amount (₹)*
+                </label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '10px', top: '7px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
                     ₹
@@ -1225,7 +1285,17 @@ export default function FeesPage() {
                     min="1"
                     step="0.01"
                     value={payAmountRupees}
-                    onChange={e => setPayAmountRupees(e.target.value)}
+                    onChange={e => {
+                      setPayAmountRupees(e.target.value);
+                      const amtP = toPaise(e.target.value);
+                      if (amtP >= paymentTargetLedger.remainingPaise && paymentTargetLedger.remainingPaise > 0) {
+                        setSettlementMode('FULLY_PAID');
+                      } else if (amtP === paymentTargetLedger.dueNowPaise && paymentTargetLedger.dueNowPaise > 0) {
+                        setSettlementMode('DUE_NOW');
+                      } else {
+                        setSettlementMode('CUSTOM');
+                      }
+                    }}
                     placeholder="0.00"
                     style={{
                       width: '100%',
@@ -1233,26 +1303,68 @@ export default function FeesPage() {
                       borderRadius: '6px',
                       border: '1px solid #cbd5e1',
                       fontSize: '13px',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       color: '#0B1D3A',
                     }}
                   />
                 </div>
 
-                {/* Settlement Feedback */}
-                {parseFloat(payAmountRupees) > 0 && (
-                  <div style={{ marginTop: '3px', fontSize: '11px' }}>
-                    {toPaise(payAmountRupees) >= paymentTargetLedger.remainingPaise ? (
-                      <span style={{ color: '#15803d', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <CheckCircle2 size={12} /> Full Settlement: Student account will be marked 100% "Paid in full"
-                      </span>
-                    ) : (
-                      <span style={{ color: '#475569' }}>
-                        Remaining balance after this receipt: <strong>{formatINR(Math.max(0, paymentTargetLedger.remainingPaise - toPaise(payAmountRupees)))}</strong>
-                      </span>
-                    )}
+                {/* 3. Live Remaining Balance & New Status Box */}
+                <div
+                  style={{
+                    marginTop: '6px',
+                    padding: '8px 10px',
+                    backgroundColor: toPaise(payAmountRupees) >= paymentTargetLedger.remainingPaise ? '#ecfdf5' : '#f8fafc',
+                    border: `1px solid ${toPaise(payAmountRupees) >= paymentTargetLedger.remainingPaise ? '#a7f3d0' : '#e2e8f0'}`,
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                  }}
+                >
+                  <div>
+                    <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>
+                      Remaining Balance After Receipt
+                    </span>
+                    <strong style={{ fontSize: '12.5px', color: toPaise(payAmountRupees) >= paymentTargetLedger.remainingPaise ? '#047857' : '#0B1D3A' }}>
+                      {toPaise(payAmountRupees) >= paymentTargetLedger.remainingPaise ? (
+                        '₹0.00 — Zero Balance'
+                      ) : (
+                        formatINR(Math.max(0, paymentTargetLedger.remainingPaise - toPaise(payAmountRupees)))
+                      )}
+                    </strong>
                   </div>
-                )}
+
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>
+                      New Account Status
+                    </span>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        fontSize: '10.5px',
+                        fontWeight: 700,
+                        backgroundColor: toPaise(payAmountRupees) >= paymentTargetLedger.remainingPaise ? '#d1fae5' : '#e0f2fe',
+                        color: toPaise(payAmountRupees) >= paymentTargetLedger.remainingPaise ? '#065f46' : '#0369a1',
+                      }}
+                    >
+                      {toPaise(payAmountRupees) >= paymentTargetLedger.remainingPaise ? (
+                        <>
+                          <CheckCircle2 size={11} /> Paid in full
+                        </>
+                      ) : (
+                        <>
+                          <Clock size={11} /> {toPaise(payAmountRupees) >= paymentTargetLedger.dueNowPaise ? 'On track' : 'Payment due'}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* Payment Method Selector */}

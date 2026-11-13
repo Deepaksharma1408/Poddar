@@ -88,7 +88,7 @@ export function canApproveRecord(
       return { allowed: false, reason: `${currentRole} is not authorized to approve operating expense bills.` };
 
     case 'PAYROLL':
-      if (['HR Admin', 'Accounts Admin', 'Director', 'Management', 'Super Admin'].includes(currentRole)) {
+      if (['HOD', 'HR Admin', 'Accounts Admin', 'Director', 'Management', 'Super Admin'].includes(currentRole)) {
         return { allowed: true };
       }
       return { allowed: false, reason: `${currentRole} cannot approve payroll records.` };

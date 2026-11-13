@@ -192,8 +192,9 @@ export default function ApprovalsInboxPage() {
 
   // Handle Approve
   const handleApprove = (item: ApprovalQueueItem) => {
-    // Maker-checker validation
-    const makerChecker = canApproveRecord(currentRole, item.submittedByRole, 'BILL');
+    // Maker-checker validation: Use correct action type (PAYROLL for payroll records, BILL for bills)
+    const actionType = item.sourceType === 'PAYROLL' ? 'PAYROLL' : 'BILL';
+    const makerChecker = canApproveRecord(currentRole, item.submittedByRole, actionType);
     if (!makerChecker.allowed && currentRole !== 'Super Admin' && currentRole !== 'Director') {
       showToast('Maker-Checker Lock', makerChecker.reason || 'You cannot approve a request you created.', 'error');
       return;
@@ -215,32 +216,14 @@ export default function ApprovalsInboxPage() {
       });
       showToast('Purchase Order Approved', `${item.reference} sanctioned for procurement.`, 'success');
     } else if (item.sourceType === 'PAYROLL') {
-      const rec = item.rawPayload as PayrollRecord;
-      let nextStatus: PayrollRecord['status'] = 'Approved';
-      if (rec.status === 'Pending HOD Review') nextStatus = 'Pending HR Approval';
-      else if (rec.status === 'Pending HR Approval') nextStatus = 'Pending Accounts Approval';
-      else if (rec.status === 'Pending Accounts Approval') nextStatus = 'Approved';
-      else if (rec.status === 'Pending Director Approval') nextStatus = 'Approved';
-
+      // HOD and authorized roles can directly finalize and approve payroll
       dispatch({
         type: 'UPDATE_PAYROLL_STATUS',
         recordId: item.id,
-        status: nextStatus,
-        remarks: `Promoted to ${nextStatus} by ${currentRole} via Approval Inbox`,
+        status: 'Approved',
+        remarks: `Approved and authorized by ${currentRole} via Approval Inbox`,
       });
-
-      if (nextStatus.startsWith('Pending')) {
-        showApprovalNotice({
-          itemTitle: item.title,
-          category: 'Payroll & Salaries',
-          amountPaise: item.amountPaise,
-          reference: item.reference,
-          nextApproverTier: nextStatus.replace('Pending ', ''),
-          notes: `Payroll record verified by ${currentRole} and transmitted to ${nextStatus.replace('Pending ', '')} for authorization.`,
-        });
-      } else {
-        showToast('Payroll Record Approved', `${item.title} authorized for disbursement.`, 'success');
-      }
+      showToast('Payroll Record Approved', `${item.title} authorized for disbursement.`, 'success');
     } else if (item.sourceType === 'SCHOLARSHIP') {
       dispatch({
         type: 'APPROVE_SCHOLARSHIP',
@@ -252,18 +235,6 @@ export default function ApprovalsInboxPage() {
     } else {
       showToast('Approved', `${item.reference} authorized successfully.`, 'success');
     }
-  };
-
-  // Handle Forward for Next Approval
-  const handleForwardForProceeding = (item: ApprovalQueueItem) => {
-    showApprovalNotice({
-      itemTitle: item.title,
-      category: item.sourceType === 'BILL' ? 'Operating Expenses' : item.sourceType === 'PO' ? 'Purchase Order' : item.sourceType === 'PAYROLL' ? 'Payroll & Salaries' : 'General',
-      amountPaise: item.amountPaise,
-      reference: item.reference,
-      nextApproverTier: item.nextApproverTier,
-      notes: `Approval request transmitted by ${currentRole} via Approval Inbox. Awaiting institutional proceeding.`,
-    });
   };
 
   // Handle Reject / Return
@@ -543,7 +514,7 @@ export default function ApprovalsInboxPage() {
                           disabled={isMyCreation && currentRole !== 'Super Admin'}
                           title={isMyCreation ? 'Maker-Checker Lock: You cannot approve your own creation' : 'Authorize & Sanction'}
                           style={{
-                            padding: '4px 10px',
+                            padding: '5px 12px',
                             backgroundColor: isMyCreation ? '#e2e8f0' : '#25866b',
                             color: isMyCreation ? '#94a3b8' : '#ffffff',
                             border: 'none',
@@ -562,32 +533,10 @@ export default function ApprovalsInboxPage() {
 
                         <button
                           type="button"
-                          onClick={() => handleForwardForProceeding(item)}
-                          title="Forward for Proceeding with Confirmation Notice"
-                          style={{
-                            padding: '4px 8px',
-                            backgroundColor: '#102d47',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '5px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          <ArrowRight size={12} />
-                          <span>Proceed</span>
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => handleReject(item)}
                           title="Return for revision"
                           style={{
-                            padding: '4px 8px',
+                            padding: '5px 10px',
                             backgroundColor: '#fef2f2',
                             color: '#ad211d',
                             border: '1px solid #fecaca',
