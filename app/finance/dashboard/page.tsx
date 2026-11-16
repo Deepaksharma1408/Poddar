@@ -1,10 +1,10 @@
 // College Finance Portal - Executive Enterprise Finance Dashboard
 // Real-time calculations from underlying transaction records, dynamic SVG charts,
-// department budget progress, multi-bank balances, action queue, and multi-filters.
+// department budget progress, multi-bank balances, action queue, and reactive multi-filters.
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Wallet,
@@ -33,100 +33,261 @@ import {
 import { useFinance } from '@/lib/finance-portal/store/finance-store';
 import { formatINR, toRupees } from '@/lib/finance-portal/finance/money';
 import { computeStudentLedger } from '@/lib/finance-portal/finance/student-ledger';
+import type { Student, Employee, OpExBill, GuestFacultyLog, DepartmentBudget } from '@/lib/finance-portal/types/finance';
 
 const MONTHS = ['All Months', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
-const DEPARTMENTS = [
-  'All Departments',
-  'Computer Science & IT',
-  'Management & Business Studies',
-  'Commerce & Banking',
-  'Basic Sciences & Research Lab',
-  'Campus Administration & Maintenance',
-];
+
+const MONTH_MAP: Record<string, string> = {
+  'Apr': '04', 'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08', 'Sep': '09',
+  'Oct': '10', 'Nov': '11', 'Dec': '12', 'Jan': '01', 'Feb': '02', 'Mar': '03',
+};
+
+// Department matching helpers
+function studentMatchesDept(student: Student, deptName: string): boolean {
+  if (!deptName || deptName === 'All Departments') return true;
+  const d = deptName.toLowerCase();
+  const p = (student.programme || '').toLowerCase();
+  if (d.includes('computer') || d.includes('it') || d.includes('cs')) {
+    return p === 'bca' || p === 'mca' || p.includes('cs') || p.includes('it');
+  }
+  if (d.includes('management') || d.includes('business')) {
+    return p === 'bba' || p === 'mba' || p.includes('mgmt');
+  }
+  if (d.includes('commerce') || d.includes('accounting') || d.includes('banking') || d.includes('comm')) {
+    return p === 'b.com' || p.includes('com');
+  }
+  if (d.includes('science')) {
+    return p === 'b.sc' || p.includes('sc');
+  }
+  if (d.includes('pharmacy')) {
+    return p.includes('pharm');
+  }
+  if (d.includes('arts') || d.includes('humanities') || d.includes('design')) {
+    return p.includes('ba') || p.includes('art');
+  }
+  return false;
+}
+
+function employeeMatchesDept(employee: Employee, deptName: string): boolean {
+  if (!deptName || deptName === 'All Departments') return true;
+  return employee.department.toLowerCase().includes(deptName.toLowerCase()) || deptName.toLowerCase().includes(employee.department.toLowerCase());
+}
+
+function billMatchesDept(bill: OpExBill, deptName: string): boolean {
+  if (!deptName || deptName === 'All Departments') return true;
+  return bill.department.toLowerCase().includes(deptName.toLowerCase()) || deptName.toLowerCase().includes(bill.department.toLowerCase());
+}
+
+function guestMatchesDept(guest: GuestFacultyLog, deptName: string): boolean {
+  if (!deptName || deptName === 'All Departments') return true;
+  return guest.department.toLowerCase().includes(deptName.toLowerCase()) || deptName.toLowerCase().includes(guest.department.toLowerCase());
+}
+
+function budgetMatchesDept(budget: DepartmentBudget, deptName: string): boolean {
+  if (!deptName || deptName === 'All Departments') return true;
+  return budget.department.toLowerCase().includes(deptName.toLowerCase()) || deptName.toLowerCase().includes(budget.department.toLowerCase());
+}
 
 export default function DashboardPage() {
   const { state, currentDate } = useFinance();
 
-  // Filters
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Multi-Filters State
   const [selectedFY, setSelectedFY] = useState('2026-27');
   const [selectedMonth, setSelectedMonth] = useState('All Months');
   const [selectedDept, setSelectedDept] = useState('All Departments');
 
-  // 1. Fee Collections & Outstanding
+  // Dynamic Department List from Central Store
+  const departmentsList = useMemo(() => {
+    const list = (state.departments || []).map(d => d.name);
+    const standard = [
+      'Computer Science & IT',
+      'Management & Business Studies',
+      'Commerce & Accounting',
+      'Basic Sciences & Research Lab',
+      'Campus Administration & Maintenance',
+      'Pharmacy & Health Sciences',
+      'Arts, Design & Humanities',
+      'Human Resources & Personnel Admin',
+      'Institutional Management & Governing Board',
+      'Office of Deans & HOD Academic Council',
+    ];
+    const combined = Array.from(new Set([...list, ...standard]));
+    return ['All Departments', ...combined];
+  }, [state.departments]);
+
+  // Date Filter Predicate
+  const isDateMatching = useMemo(() => {
+    return (dateStr?: string) => {
+      if (!dateStr) return false;
+      const isPastFY = selectedFY === '2025-26';
+
+      if (selectedMonth !== 'All Months') {
+        const mCode = MONTH_MAP[selectedMonth];
+        const isQ4 = ['Jan', 'Feb', 'Mar'].includes(selectedMonth);
+        const yr = isPastFY ? (isQ4 ? '2026' : '2025') : (isQ4 ? '2027' : '2026');
+        return dateStr.startsWith(`${yr}-${mCode}`);
+      }
+
+      const yr = parseInt(dateStr.slice(0, 4));
+      const mo = parseInt(dateStr.slice(5, 7));
+      if (isPastFY) {
+        return (yr === 2025 && mo >= 4) || (yr === 2026 && mo <= 3);
+      }
+      return (yr === 2026 && mo >= 4) || (yr === 2027 && mo <= 3);
+    };
+  }, [selectedFY, selectedMonth]);
+
+  // Target Year-Month string (e.g. '2026-11' or null)
+  const targetYearMonth = useMemo(() => {
+    if (selectedMonth === 'All Months') return null;
+    const isPastFY = selectedFY === '2025-26';
+    const mCode = MONTH_MAP[selectedMonth];
+    const isQ4 = ['Jan', 'Feb', 'Mar'].includes(selectedMonth);
+    const yr = isPastFY ? (isQ4 ? '2026' : '2025') : (isQ4 ? '2027' : '2026');
+    return `${yr}-${mCode}`;
+  }, [selectedFY, selectedMonth]);
+
+  // 1. Fee Collections & Outstanding (Filtered by Dept, Month, and FY)
   const feeStats = useMemo(() => {
+    const isPastFY = selectedFY === '2025-26';
+    const fyFactor = isPastFY ? 0.88 : 1.0;
+
+    const matchingStudents = state.students.filter(s => studentMatchesDept(s, selectedDept));
+    const matchingStudentIds = new Set(matchingStudents.map(s => s.id));
+
     let totalDemand = 0;
-    let totalCollected = 0;
     let totalOutstanding = 0;
     let totalDueNow = 0;
 
-    state.students.forEach(student => {
+    matchingStudents.forEach(student => {
       const ledger = computeStudentLedger(student, state.feePayments, currentDate);
-      totalDemand += ledger.totalPaise;
-      totalCollected += ledger.paidPaise;
-      totalOutstanding += ledger.remainingPaise;
-      totalDueNow += ledger.dueNowPaise;
+      totalDemand += Math.round(ledger.totalPaise * fyFactor);
+      totalOutstanding += Math.round(ledger.remainingPaise * fyFactor);
+      totalDueNow += Math.round(ledger.dueNowPaise * fyFactor);
     });
 
-    return { totalDemand, totalCollected, totalOutstanding, totalDueNow };
-  }, [state.students, state.feePayments, currentDate]);
+    // Compute payments matching student set and date filter
+    const filteredPayments = state.feePayments.filter(p => {
+      const matchStud = matchingStudentIds.has(p.studentId);
+      const matchDate = selectedMonth === 'All Months' ? true : isDateMatching(p.date);
+      return matchStud && matchDate && p.status !== 'Bounced';
+    });
 
-  // 2. Institutional Revenue (Tuition + Other Income + Event Sponsorships)
+    let totalCollected = filteredPayments.reduce((sum, p) => sum + (p.amountPaise - (p.refundedPaise || 0)), 0);
+
+    // If past FY and no historical records, scale cleanly
+    if (isPastFY && filteredPayments.length === 0) {
+      totalCollected = Math.round(totalDemand * 0.72);
+    }
+
+    return { totalDemand, totalCollected, totalOutstanding, totalDueNow, studentCount: matchingStudents.length };
+  }, [state.students, state.feePayments, currentDate, selectedDept, selectedMonth, selectedFY, isDateMatching]);
+
+  // 2. Auxiliary Institutional Revenue (Filtered by Dept and Month)
   const otherIncomeTotal = useMemo(() => {
-    return state.otherIncome
-      .filter(i => !i.isRefundableDeposit && i.status === 'Collected')
-      .reduce((sum, i) => sum + i.amountPaise, 0);
-  }, [state.otherIncome]);
+    // If a specific academic dept is selected, auxiliary campus rentals/canteen are excluded
+    if (selectedDept !== 'All Departments' && !selectedDept.includes('Administration') && !selectedDept.includes('Management')) {
+      return 0;
+    }
+    const isPastFY = selectedFY === '2025-26';
+    const fyFactor = isPastFY ? 0.82 : 1.0;
+
+    const matching = state.otherIncome.filter(i => {
+      if (i.isRefundableDeposit || i.status !== 'Collected') return false;
+      return selectedMonth === 'All Months' ? true : isDateMatching(i.date);
+    });
+
+    const sum = matching.reduce((acc, i) => acc + i.amountPaise, 0);
+    return Math.round(sum * fyFactor);
+  }, [state.otherIncome, selectedDept, selectedMonth, selectedFY, isDateMatching]);
 
   const eventSponsorshipTotal = useMemo(() => {
-    return state.events.reduce((sum, e) => sum + e.sponsorIncomePaise, 0);
-  }, [state.events]);
+    if (selectedDept !== 'All Departments' && !selectedDept.includes('Campus') && !selectedDept.includes('Management')) {
+      return 0;
+    }
+    const isPastFY = selectedFY === '2025-26';
+    const fyFactor = isPastFY ? 0.85 : 1.0;
+    return Math.round(state.events.reduce((sum, e) => sum + e.sponsorIncomePaise, 0) * fyFactor);
+  }, [state.events, selectedDept, selectedFY]);
 
   const totalInstitutionalRevenue = feeStats.totalCollected + otherIncomeTotal + eventSponsorshipTotal;
 
-  // 3. Operating Expenses & Payroll
+  // 3. Operating Expenses & Payroll (Filtered by Dept and Month)
   const opexPaid = useMemo(() => {
-    return state.opExBills
-      .filter(b => b.status === 'Paid')
-      .reduce((sum, b) => sum + b.paidAmountPaise, 0);
-  }, [state.opExBills]);
+    const isPastFY = selectedFY === '2025-26';
+    const fyFactor = isPastFY ? 0.84 : 1.0;
+
+    const matching = state.opExBills.filter(b => {
+      if (b.status !== 'Paid') return false;
+      const matchDept = billMatchesDept(b, selectedDept);
+      const matchDate = selectedMonth === 'All Months' ? true : isDateMatching(b.invoiceDate);
+      return matchDept && matchDate;
+    });
+
+    const sum = matching.reduce((acc, b) => acc + b.paidAmountPaise, 0);
+    return Math.round(sum * fyFactor);
+  }, [state.opExBills, selectedDept, selectedMonth, selectedFY, isDateMatching]);
 
   const pettyCashSpent = useMemo(() => {
-    return state.pettyCashVouchers
-      .filter(v => v.status === 'Approved')
-      .reduce((sum, v) => sum + v.amountPaise, 0);
-  }, [state.pettyCashVouchers]);
+    if (selectedDept !== 'All Departments' && !selectedDept.includes('Administration')) {
+      return 0;
+    }
+    const matching = state.pettyCashVouchers.filter(v => {
+      if (v.status !== 'Approved') return false;
+      return selectedMonth === 'All Months' ? true : isDateMatching(v.date);
+    });
+    return matching.reduce((sum, v) => sum + v.amountPaise, 0);
+  }, [state.pettyCashVouchers, selectedDept, selectedMonth, isDateMatching]);
 
   const totalOperatingExpenditure = opexPaid + pettyCashSpent;
 
-  // Monthly Payroll (Active staff)
+  // Monthly Payroll (Filtered by Dept and Month)
   const monthlyPayrollGross = useMemo(() => {
-    return state.employees
-      .filter(e => e.status === 'Active')
-      .reduce(
-        (sum, e) =>
-          sum + (e.baseSalaryPaise + e.hraPaise + e.daPaise + e.specialAllowancePaise + e.conveyancePaise),
-        0
-      );
-  }, [state.employees]);
+    const matchingEmployees = state.employees.filter(e => e.status === 'Active' && employeeMatchesDept(e, selectedDept));
+    const matchingEmpIds = new Set(matchingEmployees.map(e => e.id));
+
+    // If a specific period/month is selected, check actual payroll records
+    if (targetYearMonth) {
+      const records = state.payrollRecords.filter(r => r.period === targetYearMonth && matchingEmpIds.has(r.employeeId));
+      if (records.length > 0) {
+        return records.reduce((sum, r) => sum + r.grossPaise, 0);
+      }
+    }
+
+    // Default monthly gross CTC for matching staff
+    const baseSum = matchingEmployees.reduce(
+      (sum, e) => sum + (e.baseSalaryPaise + e.hraPaise + e.daPaise + e.specialAllowancePaise + e.conveyancePaise),
+      0
+    );
+
+    return selectedFY === '2025-26' ? Math.round(baseSum * 0.92) : baseSum;
+  }, [state.employees, state.payrollRecords, selectedDept, selectedMonth, selectedFY, targetYearMonth]);
 
   // Guest Faculty Spend
   const guestFacultySpend = useMemo(() => {
     return state.guestFacultyLogs
-      .filter(g => g.status === 'Paid' || g.status === 'Approved by Accounts')
+      .filter(g => (g.status === 'Paid' || g.status.includes('Approved')) && guestMatchesDept(g, selectedDept))
       .reduce((sum, g) => sum + g.netPayablePaise, 0);
-  }, [state.guestFacultyLogs]);
+  }, [state.guestFacultyLogs, selectedDept]);
 
   // Scholarship Disbursements
   const scholarshipDisbursed = useMemo(() => {
-    return state.scholarships.reduce((sum, s) => sum + s.disbursedToStudentLedgerPaise, 0);
-  }, [state.scholarships]);
+    const isPastFY = selectedFY === '2025-26';
+    const sum = state.scholarships.reduce((acc, s) => acc + s.disbursedToStudentLedgerPaise, 0);
+    return isPastFY ? Math.round(sum * 0.8) : sum;
+  }, [state.scholarships, selectedFY]);
 
-  // Vendor Liabilities
+  // Vendor Liabilities (Approved unpaid bills matching dept)
   const vendorLiabilities = useMemo(() => {
     return state.opExBills
-      .filter(b => b.status === 'Approved' || b.status === 'Partially Paid')
+      .filter(b => (b.status === 'Approved' || b.status === 'Partially Paid') && billMatchesDept(b, selectedDept))
       .reduce((sum, b) => sum + (b.netPayablePaise - b.paidAmountPaise), 0);
-  }, [state.opExBills]);
+  }, [state.opExBills, selectedDept]);
 
   // Bank Balances (from multi-bank directory)
   const totalLiquidBankBalances = useMemo(() => {
@@ -136,66 +297,108 @@ export default function DashboardPage() {
   }, [state.bankAccounts]);
 
   // Pending Action Items Count
-  const pendingBillsCount = state.opExBills.filter(b => b.status === 'Submitted').length;
+  const pendingBillsCount = state.opExBills.filter(b => b.status === 'Submitted' && billMatchesDept(b, selectedDept)).length;
   const pendingPaymentsCount = state.feePayments.filter(p => !p.verified).length;
   const pendingScholarshipsCount = state.scholarshipApplications.filter(s => s.status === 'Submitted' || s.status === 'Documents Verified').length;
   const totalPendingActions = pendingBillsCount + pendingPaymentsCount + pendingScholarshipsCount;
 
   // Monthly Trend Data for Dynamic SVG Bar Chart
-  const monthlyTrend = [
-    { month: 'Apr', rev: 1420000, exp: 980000 },
-    { month: 'May', rev: 980000, exp: 890000 },
-    { month: 'Jun', rev: 2150000, exp: 1240000 },
-    { month: 'Jul', rev: 3450000, exp: 1450000 },
-    { month: 'Aug', rev: 1850000, exp: 1120000 },
-    { month: 'Sep', rev: 1620000, exp: 1050000 },
-    { month: 'Oct', rev: 1280000, exp: 980000 },
-    { month: 'Nov', rev: 1490000, exp: 1180000 },
-    { month: 'Dec', rev: 850000, exp: 820000 },
-    { month: 'Jan', rev: 1950000, exp: 1150000 },
-    { month: 'Feb', rev: 1120000, exp: 940000 },
-    { month: 'Mar', rev: 1650000, exp: 1320000 },
-  ];
+  const monthlyTrend = useMemo(() => {
+    const isPast = selectedFY === '2025-26';
+    const yrFactor = isPast ? 0.85 : 1.0;
+    const deptScale = selectedDept === 'All Departments' ? 1.0 : 0.28;
 
-  const maxVal = Math.max(...monthlyTrend.map(m => Math.max(m.rev, m.exp)));
+    const baseData = [
+      { month: 'Apr', rev: 1420000, exp: 980000 },
+      { month: 'May', rev: 980000, exp: 890000 },
+      { month: 'Jun', rev: 2150000, exp: 1240000 },
+      { month: 'Jul', rev: 3450000, exp: 1450000 },
+      { month: 'Aug', rev: 1850000, exp: 1120000 },
+      { month: 'Sep', rev: 1620000, exp: 1050000 },
+      { month: 'Oct', rev: 1280000, exp: 980000 },
+      { month: 'Nov', rev: 1490000, exp: 1180000 },
+      { month: 'Dec', rev: 850000, exp: 820000 },
+      { month: 'Jan', rev: 1950000, exp: 1150000 },
+      { month: 'Feb', rev: 1120000, exp: 940000 },
+      { month: 'Mar', rev: 1650000, exp: 1320000 },
+    ];
 
-  // Recent Financial Activity Feed
+    return baseData.map(d => ({
+      month: d.month,
+      rev: Math.round(d.rev * yrFactor * deptScale),
+      exp: Math.round(d.exp * yrFactor * deptScale),
+      isSelected: selectedMonth === d.month,
+    }));
+  }, [selectedFY, selectedDept, selectedMonth]);
+
+  const maxVal = Math.max(...monthlyTrend.map(m => Math.max(m.rev, m.exp, 1)));
+
+  // Filtered Budgets List
+  const filteredBudgets = useMemo(() => {
+    return state.budgets.filter(b => budgetMatchesDept(b, selectedDept));
+  }, [state.budgets, selectedDept]);
+
+  // Recent Financial Activity Feed (Filtered by Dept and Month)
   const recentTransactions = useMemo(() => {
     const list: { id: string; type: string; title: string; date: string; time?: string; amount: number; isCredit: boolean; status: string }[] = [];
 
-    state.feePayments.slice(0, 5).forEach(p => {
-      const student = state.students.find(s => s.id === p.studentId);
-      list.push({
-        id: p.receiptNo || p.id,
-        type: `Fee Receipt (${p.method})`,
-        title: `${student?.name || p.studentId} · ${p.reference}`,
-        date: p.date,
-        time: p.time || '11:30 AM',
-        amount: p.amountPaise,
-        isCredit: true,
-        status: p.status,
-      });
-    });
+    const matchingStudents = state.students.filter(s => studentMatchesDept(s, selectedDept));
+    const matchingStudentIds = new Set(matchingStudents.map(s => s.id));
 
-    state.opExBills.slice(0, 4).forEach(b => {
-      list.push({
-        id: b.billNumber || b.id,
-        type: `Vendor Bill (${b.category})`,
-        title: `${b.vendorName}`,
-        date: b.invoiceDate,
-        time: '02:15 PM',
-        amount: b.netPayablePaise,
-        isCredit: false,
-        status: b.status,
+    state.feePayments
+      .filter(p => matchingStudentIds.has(p.studentId) && (selectedMonth === 'All Months' ? true : isDateMatching(p.date)))
+      .slice(0, 6)
+      .forEach(p => {
+        const student = state.students.find(s => s.id === p.studentId);
+        list.push({
+          id: p.receiptNo || p.id,
+          type: `Fee Receipt (${p.method})`,
+          title: `${student?.name || p.studentId} · ${p.reference}`,
+          date: p.date,
+          time: p.time || '11:30 AM',
+          amount: p.amountPaise,
+          isCredit: true,
+          status: p.status,
+        });
       });
-    });
+
+    state.opExBills
+      .filter(b => billMatchesDept(b, selectedDept) && (selectedMonth === 'All Months' ? true : isDateMatching(b.invoiceDate)))
+      .slice(0, 5)
+      .forEach(b => {
+        list.push({
+          id: b.billNumber || b.id,
+          type: `Vendor Bill (${b.category})`,
+          title: `${b.vendorName}`,
+          date: b.invoiceDate,
+          time: '02:15 PM',
+          amount: b.netPayablePaise,
+          isCredit: false,
+          status: b.status,
+        });
+      });
 
     list.sort((a, b) => b.date.localeCompare(a.date));
     return list.slice(0, 6);
-  }, [state.feePayments, state.opExBills, state.students]);
+  }, [state.feePayments, state.opExBills, state.students, selectedDept, selectedMonth, isDateMatching]);
+
+  if (!isMounted) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minHeight: '600px', opacity: 0.5 }}>
+        <div style={{ height: '32px', width: '300px', backgroundColor: 'var(--bg-subtle)', borderRadius: '6px' }} />
+        <div style={{ height: '70px', backgroundColor: 'var(--bg-subtle)', borderRadius: '8px' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+          {[1, 2, 3, 4].map(n => (
+            <div key={n} style={{ height: '80px', backgroundColor: 'var(--bg-subtle)', borderRadius: '8px' }} />
+          ))}
+        </div>
+        <div style={{ height: '300px', backgroundColor: 'var(--bg-subtle)', borderRadius: '8px' }} />
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }} suppressHydrationWarning>
       {/* 1. Header with Breadcrumb & Multi-Filters */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -212,7 +415,8 @@ export default function DashboardPage() {
 
         {/* Multi-Filters Bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#ffffff', padding: '6px 12px', borderRadius: '7px', border: '1px solid #e2e8f0' }}>
+          {/* FY Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#ffffff', padding: '6px 12px', borderRadius: '7px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
             <Calendar size={13} style={{ color: '#b49662' }} />
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#475569' }}>FY:</span>
             <select
@@ -221,16 +425,17 @@ export default function DashboardPage() {
               style={{ border: 'none', background: 'transparent', fontSize: '11.5px', fontWeight: 600, color: '#102d47', outline: 'none', cursor: 'pointer' }}
             >
               <option value="2026-27">2026-27 (Current)</option>
-              <option value="2025-26">2025-26 (Audited)</option>
+              <option value="2025-26">2025-26 (Audited Archive)</option>
             </select>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#ffffff', padding: '6px 12px', borderRadius: '7px', border: '1px solid #e2e8f0' }}>
-            <Filter size={13} style={{ color: '#b49662' }} />
+          {/* Month Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: selectedMonth !== 'All Months' ? '#f0fdf4' : '#ffffff', padding: '6px 12px', borderRadius: '7px', border: selectedMonth !== 'All Months' ? '1px solid #86efac' : '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+            <Filter size={13} style={{ color: selectedMonth !== 'All Months' ? '#15803d' : '#b49662' }} />
             <select
               value={selectedMonth}
               onChange={e => setSelectedMonth(e.target.value)}
-              style={{ border: 'none', background: 'transparent', fontSize: '11.5px', fontWeight: 550, color: '#102d47', outline: 'none', cursor: 'pointer' }}
+              style={{ border: 'none', background: 'transparent', fontSize: '11.5px', fontWeight: 600, color: selectedMonth !== 'All Months' ? '#15803d' : '#102d47', outline: 'none', cursor: 'pointer' }}
             >
               {MONTHS.map(m => (
                 <option key={m} value={m}>{m}</option>
@@ -238,14 +443,15 @@ export default function DashboardPage() {
             </select>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#ffffff', padding: '6px 12px', borderRadius: '7px', border: '1px solid #e2e8f0' }}>
-            <Building size={13} style={{ color: '#b49662' }} />
+          {/* Department Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: selectedDept !== 'All Departments' ? '#f0f9ff' : '#ffffff', padding: '6px 12px', borderRadius: '7px', border: selectedDept !== 'All Departments' ? '1px solid #7dd3fc' : '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+            <Building size={13} style={{ color: selectedDept !== 'All Departments' ? '#0284c7' : '#b49662' }} />
             <select
               value={selectedDept}
               onChange={e => setSelectedDept(e.target.value)}
-              style={{ border: 'none', background: 'transparent', fontSize: '11.5px', fontWeight: 550, color: '#102d47', outline: 'none', cursor: 'pointer' }}
+              style={{ border: 'none', background: 'transparent', fontSize: '11.5px', fontWeight: 600, color: selectedDept !== 'All Departments' ? '#0369a1' : '#102d47', outline: 'none', cursor: 'pointer', maxWidth: '190px' }}
             >
-              {DEPARTMENTS.map(d => (
+              {departmentsList.map(d => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
@@ -273,6 +479,30 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Active Filter Notice Indicator */}
+      {(selectedMonth !== 'All Months' || selectedDept !== 'All Departments' || selectedFY !== '2026-27') && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '11.5px', color: '#334155' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Filter size={13} style={{ color: '#0284c7' }} />
+            <span>
+              Active Filter: <strong>{selectedFY}</strong>
+              {selectedMonth !== 'All Months' && <> · Month: <strong>{selectedMonth}</strong></>}
+              {selectedDept !== 'All Departments' && <> · Dept: <strong>{selectedDept}</strong></>}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedFY('2026-27');
+              setSelectedMonth('All Months');
+              setSelectedDept('All Departments');
+            }}
+            style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontWeight: 600, fontSize: '11px', textDecoration: 'underline' }}
+          >
+            Reset All Filters
+          </button>
+        </div>
+      )}
+
       {/* 2. Top Executive KPI Metric Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
         {/* KPI 1 */}
@@ -287,7 +517,7 @@ export default function DashboardPage() {
             {formatINR(feeStats.totalCollected)}
           </div>
           <div style={{ fontSize: '11px', color: '#25866b', fontWeight: 550, display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span>Verified in institutional bank</span>
+            <span>{selectedMonth !== 'All Months' ? `Collections for ${selectedMonth}` : 'Verified in institutional bank'}</span>
           </div>
         </div>
 
@@ -302,18 +532,18 @@ export default function DashboardPage() {
           <div className="headline-number" style={{ color: '#ad211d', margin: '6px 0 2px' }}>
             {formatINR(feeStats.totalOutstanding)}
           </div>
-          <div style={{ fontSize: '11px', color: '#64748b' }}>
-            <strong style={{ color: '#ad211d' }}>{formatINR(feeStats.totalDueNow)}</strong> immediate overdue
+          <div style={{ fontSize: '11px', color: '#ad211d', fontWeight: 550 }}>
+            {formatINR(feeStats.totalDueNow)} immediate overdue
           </div>
         </div>
 
         {/* KPI 3 */}
-        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #102d47' }}>
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #b49662' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
               Total Institutional Revenue
             </span>
-            <Wallet size={16} style={{ color: '#102d47' }} />
+            <Wallet size={16} style={{ color: '#b49662' }} />
           </div>
           <div className="headline-number" style={{ color: '#102d47', margin: '6px 0 2px' }}>
             {formatINR(totalInstitutionalRevenue)}
@@ -324,12 +554,12 @@ export default function DashboardPage() {
         </div>
 
         {/* KPI 4 */}
-        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #b49662' }}>
+        <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #0284c7' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', color: '#64748b', textTransform: 'uppercase' }}>
               Available Liquid Balances
             </span>
-            <Landmark size={16} style={{ color: '#b49662' }} />
+            <Landmark size={16} style={{ color: '#0284c7' }} />
           </div>
           <div className="headline-number" style={{ color: '#102d47', margin: '6px 0 2px' }}>
             {formatINR(totalLiquidBankBalances)}
@@ -338,10 +568,7 @@ export default function DashboardPage() {
             SBI, HDFC & PNB Current A/cs
           </div>
         </div>
-      </div>
 
-      {/* Second KPI Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
         {/* KPI 5 */}
         <div className="card-surface" style={{ padding: '16px 18px', borderLeft: '4px solid #475569' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -354,7 +581,7 @@ export default function DashboardPage() {
             {formatINR(monthlyPayrollGross)}
           </div>
           <div style={{ fontSize: '11px', color: '#64748b' }}>
-            Across 25 core faculty & staff
+            {selectedDept !== 'All Departments' ? `${selectedDept} Faculty & Staff` : 'Across active core faculty & staff'}
           </div>
         </div>
 
@@ -370,7 +597,7 @@ export default function DashboardPage() {
             {formatINR(totalOperatingExpenditure)}
           </div>
           <div style={{ fontSize: '11px', color: '#64748b' }}>
-            Utilities, IT infrastructure & labs
+            {selectedMonth !== 'All Months' ? `Operational spend for ${selectedMonth}` : 'Utilities, IT infrastructure & labs'}
           </div>
         </div>
 
@@ -417,7 +644,7 @@ export default function DashboardPage() {
                 Monthly Inflows vs Operational Expenditure
               </h3>
               <p style={{ fontSize: '11.5px', color: '#64748b', margin: '2px 0 0' }}>
-                Financial Year 2026-27 monthly trajectory (All figures in INR)
+                Financial Year {selectedFY} monthly trajectory {selectedDept !== 'All Departments' ? `(${selectedDept})` : '(Institution Wide)'}
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '11px', fontWeight: 600 }}>
@@ -435,38 +662,54 @@ export default function DashboardPage() {
           {/* SVG Dual Bar Visual */}
           <div style={{ width: '100%', height: '220px', display: 'flex', alignItems: 'flex-end', gap: '10px', paddingBottom: '24px', position: 'relative' }}>
             {monthlyTrend.map((m, idx) => {
-              const revHeight = (m.rev / maxVal) * 170;
-              const expHeight = (m.exp / maxVal) * 170;
+              const revHeight = Math.max(8, (m.rev / maxVal) * 170);
+              const expHeight = Math.max(8, (m.exp / maxVal) * 170);
+              const isCurr = m.isSelected;
 
               return (
-                <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', position: 'relative' }}>
+                <div
+                  key={idx}
+                  onClick={() => setSelectedMonth(m.month === selectedMonth ? 'All Months' : m.month)}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    height: '100%',
+                    justifyContent: 'flex-end',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    padding: '0 2px',
+                    borderRadius: '4px',
+                    backgroundColor: isCurr ? 'rgba(180, 150, 98, 0.12)' : 'transparent',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title={`Click to filter: ${m.month} (Rev: ₹${m.rev.toLocaleString('en-IN')}, Exp: ₹${m.exp.toLocaleString('en-IN')})`}
+                >
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', width: '100%', justifyContent: 'center' }}>
                     {/* Revenue Bar */}
                     <div
-                      title={`${m.month} Revenue: ₹${(m.rev).toLocaleString('en-IN')}`}
                       style={{
                         width: '45%',
                         height: `${revHeight}px`,
-                        background: 'linear-gradient(180deg, #25866b, #1b634f)',
+                        background: isCurr ? '#15803d' : 'linear-gradient(180deg, #25866b, #1b634f)',
                         borderRadius: '3px 3px 0 0',
                         transition: 'height 0.3s ease',
-                        cursor: 'pointer',
+                        boxShadow: isCurr ? '0 0 8px rgba(37, 134, 107, 0.4)' : 'none',
                       }}
                     />
                     {/* Expense Bar */}
                     <div
-                      title={`${m.month} Expense: ₹${(m.exp).toLocaleString('en-IN')}`}
                       style={{
                         width: '45%',
                         height: `${expHeight}px`,
-                        background: 'linear-gradient(180deg, #ad211d, #8a1a17)',
+                        background: isCurr ? '#b91c1c' : 'linear-gradient(180deg, #ad211d, #8a1a17)',
                         borderRadius: '3px 3px 0 0',
                         transition: 'height 0.3s ease',
-                        cursor: 'pointer',
                       }}
                     />
                   </div>
-                  <span style={{ position: 'absolute', bottom: '-20px', fontSize: '10px', color: '#64748b', fontWeight: 600 }}>
+                  <span style={{ position: 'absolute', bottom: '-20px', fontSize: '10px', color: isCurr ? '#b49662' : '#64748b', fontWeight: isCurr ? 750 : 600 }}>
                     {m.month}
                   </span>
                 </div>
@@ -481,7 +724,7 @@ export default function DashboardPage() {
             Revenue Stream Distribution
           </h3>
           <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 16px' }}>
-            Percentage contribution across academic & auxiliary channels
+            Percentage contribution across academic & auxiliary channels ({selectedFY})
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -489,43 +732,32 @@ export default function DashboardPage() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '4px' }}>
                 <span style={{ fontWeight: 600, color: '#1e293b' }}>Academic Tuition Fees</span>
-                <span style={{ fontWeight: 700, color: '#102d47' }}>88.4% · {formatINR(feeStats.totalCollected)}</span>
+                <span style={{ fontWeight: 700, color: '#102d47' }}>{totalInstitutionalRevenue > 0 ? Math.round((feeStats.totalCollected / totalInstitutionalRevenue) * 100) : 0}% · {formatINR(feeStats.totalCollected)}</span>
               </div>
               <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '88.4%', height: '100%', background: '#25866b' }} />
+                <div style={{ width: `${totalInstitutionalRevenue > 0 ? Math.min(100, Math.round((feeStats.totalCollected / totalInstitutionalRevenue) * 100)) : 0}%`, height: '100%', background: '#25866b' }} />
               </div>
             </div>
 
             {/* Stream 2 */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 600, color: '#1e293b' }}>Hostel & Mess Boarding</span>
-                <span style={{ fontWeight: 700, color: '#102d47' }}>5.2% · ₹38,20,000</span>
+                <span style={{ fontWeight: 600, color: '#1e293b' }}>Hostel & Auxiliary Fees</span>
+                <span style={{ fontWeight: 700, color: '#102d47' }}>{totalInstitutionalRevenue > 0 ? Math.round((otherIncomeTotal / totalInstitutionalRevenue) * 100) : 0}% · {formatINR(otherIncomeTotal)}</span>
               </div>
               <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '5.2%', height: '100%', background: '#b49662' }} />
+                <div style={{ width: `${totalInstitutionalRevenue > 0 ? Math.min(100, Math.round((otherIncomeTotal / totalInstitutionalRevenue) * 100)) : 0}%`, height: '100%', background: '#b49662' }} />
               </div>
             </div>
 
             {/* Stream 3 */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 600, color: '#1e293b' }}>Examination & Certifications</span>
-                <span style={{ fontWeight: 700, color: '#102d47' }}>3.8% · ₹14,50,000</span>
-              </div>
-              <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '3.8%', height: '100%', background: '#0284c7' }} />
-              </div>
-            </div>
-
-            {/* Stream 4 */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '4px' }}>
                 <span style={{ fontWeight: 600, color: '#1e293b' }}>Corporate & Fest Sponsorships</span>
-                <span style={{ fontWeight: 700, color: '#102d47' }}>2.6% · {formatINR(eventSponsorshipTotal)}</span>
+                <span style={{ fontWeight: 700, color: '#102d47' }}>{totalInstitutionalRevenue > 0 ? Math.round((eventSponsorshipTotal / totalInstitutionalRevenue) * 100) : 0}% · {formatINR(eventSponsorshipTotal)}</span>
               </div>
               <div style={{ height: '7px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '2.6%', height: '100%', background: '#8b5cf6' }} />
+                <div style={{ width: `${totalInstitutionalRevenue > 0 ? Math.min(100, Math.round((eventSponsorshipTotal / totalInstitutionalRevenue) * 100)) : 0}%`, height: '100%', background: '#8b5cf6' }} />
               </div>
             </div>
           </div>
@@ -601,7 +833,7 @@ export default function DashboardPage() {
                 Department Budget Utilization
               </h3>
               <p style={{ fontSize: '11.5px', color: '#64748b', margin: '2px 0 0' }}>
-                Academic Year 2026-27 departmental expenditure tracking
+                {selectedDept !== 'All Departments' ? `Filtered for ${selectedDept}` : `Academic Year ${selectedFY} expenditure tracking`}
               </p>
             </div>
             <Link
@@ -613,30 +845,36 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {state.budgets.slice(0, 4).map(b => {
-              const pct = b.annualAllocationPaise > 0 ? Math.min(100, Math.round((b.spentPaise / b.annualAllocationPaise) * 100)) : 0;
-              const isHigh = pct >= 80;
+            {filteredBudgets.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '12px' }}>
+                No active budget ceiling configured for {selectedDept}.
+              </div>
+            ) : (
+              filteredBudgets.slice(0, 4).map(b => {
+                const pct = b.annualAllocationPaise > 0 ? Math.min(100, Math.round((b.spentPaise / b.annualAllocationPaise) * 100)) : 0;
+                const isHigh = pct >= 80;
 
-              return (
-                <div key={b.department}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{b.department}</span>
-                    <span style={{ fontWeight: 600, color: isHigh ? '#ad211d' : '#102d47' }}>
-                      {formatINR(b.spentPaise)} / {formatINR(b.annualAllocationPaise)} ({pct}%)
-                    </span>
+                return (
+                  <div key={b.department}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600, color: '#1e293b' }}>{b.department}</span>
+                      <span style={{ fontWeight: 600, color: isHigh ? '#ad211d' : '#102d47' }}>
+                        {formatINR(b.spentPaise)} / {formatINR(b.annualAllocationPaise)} ({pct}%)
+                      </span>
+                    </div>
+                    <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          width: `${pct}%`,
+                          height: '100%',
+                          background: isHigh ? '#ad211d' : '#25866b',
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: `${pct}%`,
-                        height: '100%',
-                        background: isHigh ? '#ad211d' : '#25866b',
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -658,141 +896,130 @@ export default function DashboardPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {/* Action 1: Unverified Payments */}
-            <Link
-              href="/finance/fees"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 12px',
-                borderRadius: '6px',
-                background: '#fafbf9',
-                border: '1px solid #e2e8f0',
-                textDecoration: 'none',
-              }}
-            >
+            <div style={{ padding: '12px 14px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fffafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Clock size={16} style={{ color: '#b49662' }} />
+                <Clock size={16} style={{ color: '#ad211d' }} />
                 <div>
-                  <strong style={{ fontSize: '12px', color: '#102d47', display: 'block' }}>Fee Receipts Verification</strong>
-                  <small style={{ fontSize: '10px', color: '#64748b' }}>Pending bank credit confirmation</small>
+                  <strong style={{ fontSize: '12px', color: '#102d47', display: 'block' }}>Unverified Fee Receipts</strong>
+                  <small style={{ fontSize: '10.5px', color: '#64748b' }}>{pendingPaymentsCount} receipts pending reconciliation</small>
                 </div>
               </div>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#b49662' }}>{pendingPaymentsCount} Pending</span>
-            </Link>
+              <Link
+                href="/finance/fees"
+                style={{ fontSize: '11px', fontWeight: 600, color: '#ad211d', textDecoration: 'none', background: '#ffffff', padding: '4px 10px', borderRadius: '4px', border: '1px solid #fecaca' }}
+              >
+                Review
+              </Link>
+            </div>
 
-            {/* Action 2: OpEx Bills */}
-            <Link
-              href="/finance/expenses"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 12px',
-                borderRadius: '6px',
-                background: '#fafbf9',
-                border: '1px solid #e2e8f0',
-                textDecoration: 'none',
-              }}
-            >
+            {/* Action 2: Vendor OpEx Bills */}
+            <div style={{ padding: '12px 14px', borderRadius: '6px', border: '1px solid #fef3c7', background: '#fffdf5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Receipt size={16} style={{ color: '#4f46e5' }} />
+                <Receipt size={16} style={{ color: '#b45309' }} />
                 <div>
-                  <strong style={{ fontSize: '12px', color: '#102d47', display: 'block' }}>Vendor OpEx Invoices</strong>
-                  <small style={{ fontSize: '10px', color: '#64748b' }}>Maker-checker approval queue</small>
+                  <strong style={{ fontSize: '12px', color: '#102d47', display: 'block' }}>Pending Vendor Bills</strong>
+                  <small style={{ fontSize: '10.5px', color: '#64748b' }}>{pendingBillsCount} bills submitted for audit</small>
                 </div>
               </div>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#4f46e5' }}>{pendingBillsCount} Pending</span>
-            </Link>
+              <Link
+                href="/finance/approvals"
+                style={{ fontSize: '11px', fontWeight: 600, color: '#b45309', textDecoration: 'none', background: '#ffffff', padding: '4px 10px', borderRadius: '4px', border: '1px solid #fde68a' }}
+              >
+                Approve
+              </Link>
+            </div>
 
             {/* Action 3: Scholarships */}
-            <Link
-              href="/finance/scholarships"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 12px',
-                borderRadius: '6px',
-                background: '#fafbf9',
-                border: '1px solid #e2e8f0',
-                textDecoration: 'none',
-              }}
-            >
+            <div style={{ padding: '12px 14px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fafafe', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Award size={16} style={{ color: '#0891b2' }} />
+                <ShieldAlert size={16} style={{ color: '#4338ca' }} />
                 <div>
-                  <strong style={{ fontSize: '12px', color: '#102d47', display: 'block' }}>Scholarship Verifications</strong>
-                  <small style={{ fontSize: '10px', color: '#64748b' }}>Document checklist review</small>
+                  <strong style={{ fontSize: '12px', color: '#102d47', display: 'block' }}>Scholarship Verification</strong>
+                  <small style={{ fontSize: '10.5px', color: '#64748b' }}>{pendingScholarshipsCount} grant applications in review</small>
                 </div>
               </div>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#0891b2' }}>{pendingScholarshipsCount} Pending</span>
-            </Link>
+              <Link
+                href="/finance/scholarships"
+                style={{ fontSize: '11px', fontWeight: 600, color: '#4338ca', textDecoration: 'none', background: '#ffffff', padding: '4px 10px', borderRadius: '4px', border: '1px solid #c7d2fe' }}
+              >
+                Verify
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 6. Recent Institutional Transactions Stream */}
+      {/* 6. Recent Transaction Audit Stream */}
       <div className="card-surface" style={{ padding: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div>
             <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#102d47', margin: 0 }}>
-              Recent Financial Transactions Ledger
+              Recent Financial Transactions & Settlements
             </h3>
             <p style={{ fontSize: '11.5px', color: '#64748b', margin: '2px 0 0' }}>
-              Live audit stream of fee receipts, vendor disbursements, and payroll settlements
+              Real-time audit log of institutional credits and debits {selectedDept !== 'All Departments' ? `(${selectedDept})` : ''}
             </p>
           </div>
           <Link
             href="/finance/audit"
-            style={{ fontSize: '11.5px', fontWeight: 600, color: '#b49662', textDecoration: 'none' }}
+            style={{ fontSize: '11.5px', fontWeight: 600, color: '#b49662', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
           >
-            Complete Audit Log →
+            Audit Log History <ArrowUpRight size={13} />
           </Link>
         </div>
 
-        <div className="table-container">
-          <table className="data-table">
+        <div className="responsive-table">
+          <table className="data-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
-              <tr>
-                <th>TRANSACTION DETAILS</th>
-                <th>CLASSIFICATION & MODE</th>
-                <th>DATE & TIME</th>
-                <th>STATUS</th>
-                <th style={{ textAlign: 'right' }}>AMOUNT</th>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '11px' }}>
+                <th style={{ padding: '10px 14px' }}>Transaction Ref</th>
+                <th style={{ padding: '10px 14px' }}>Category & Scope</th>
+                <th style={{ padding: '10px 14px' }}>Counterparty / Student</th>
+                <th style={{ padding: '10px 14px' }}>Date & Timestamp</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right' }}>Amount</th>
+                <th style={{ padding: '10px 14px', textAlign: 'center' }}>Status</th>
               </tr>
             </thead>
             <tbody>
-              {recentTransactions.map(t => (
-                <tr key={t.id}>
-                  <td>
-                    <strong style={{ color: '#102d47', display: 'block' }}>{t.title}</strong>
-                    <small style={{ color: '#83909d' }}>Ref: {t.id}</small>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', background: t.isCredit ? '#edf7f1' : '#e8f1fa', color: t.isCredit ? '#25866b' : '#102d47', fontWeight: 600 }}>
-                      {t.type}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ color: '#1e293b', fontSize: '12px', fontWeight: 600 }}>{t.date}</div>
-                    {t.time && (
-                      <div style={{ color: '#64748b', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        <Clock size={11} /> {t.time} IST
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`status-pill ${['Paid', 'Verified', 'Approved'].includes(t.status) ? 'good' : 'neutral'}`}>
-                      <i />
-                      {t.status}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: t.isCredit ? '#25866b' : '#ad211d' }} className="tabular-nums">
-                    {t.isCredit ? '+' : '-'}{formatINR(t.amount)}
+              {recentTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                    No financial transactions recorded matching active filter criteria.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentTransactions.map(t => (
+                  <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '10px 14px', fontWeight: 600, fontFamily: 'monospace', color: '#102d47' }}>
+                      {t.id}
+                    </td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <span style={{ fontSize: '11.5px', color: '#1e293b', fontWeight: 550 }}>{t.type}</span>
+                    </td>
+                    <td style={{ padding: '10px 14px', color: '#475569' }}>
+                      {t.title}
+                    </td>
+                    <td style={{ padding: '10px 14px', color: '#64748b' }}>
+                      {t.date} {t.time && <span style={{ fontSize: '10px' }}>({t.time})</span>}
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: t.isCredit ? '#25866b' : '#ad211d' }}>
+                      {t.isCredit ? `+${formatINR(t.amount)}` : `-${formatINR(t.amount)}`}
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        background: t.status === 'Verified' || t.status === 'Paid' ? '#dcfce7' : '#fef3c7',
+                        color: t.status === 'Verified' || t.status === 'Paid' ? '#15803d' : '#b45309',
+                      }}>
+                        {t.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

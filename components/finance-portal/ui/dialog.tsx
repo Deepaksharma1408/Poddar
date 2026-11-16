@@ -27,65 +27,59 @@ export function Dialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const [mounted, setMounted] = useState(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (open) {
-      previousActiveElement.current = document.activeElement as HTMLElement;
+    if (!open) return;
 
-      // Lock body scroll to prevent parent page from scrolling behind modal
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+    // Capture the element focused BEFORE opening dialog
+    previousActiveElement.current = document.activeElement as HTMLElement;
 
-      // Handle Escape key
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          onClose();
+    // Lock body scroll to prevent parent page from scrolling behind modal
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Handle Escape key & Focus trap
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCloseRef.current();
+      }
+
+      // Focus trap within modal
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
         }
+      }
+    };
 
-        // Focus trap
-        if (e.key === 'Tab' && dialogRef.current) {
-          const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-          );
-          if (focusable.length === 0) return;
-          const first = focusable[0];
-          const last = focusable[focusable.length - 1];
+    window.addEventListener('keydown', handleKeyDown);
 
-          if (e.shiftKey && document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      };
-
-      window.addEventListener('keydown', handleKeyDown);
-
-      // Focus first focusable item
-      setTimeout(() => {
-        if (dialogRef.current) {
-          const firstFocusable = dialogRef.current.querySelector<HTMLElement>(
-            'button, input, select, textarea'
-          );
-          if (firstFocusable) firstFocusable.focus();
-        }
-      }, 50);
-
-      return () => {
-        window.removeEventListener('keydown', handleKeyDown);
-        document.body.style.overflow = originalOverflow;
-        if (previousActiveElement.current) {
-          previousActiveElement.current.focus();
-        }
-      };
-    }
-  }, [open, onClose]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+      // Restore focus only when dialog actually unmounts or closes
+      if (previousActiveElement.current && typeof previousActiveElement.current.focus === 'function') {
+        previousActiveElement.current.focus();
+      }
+    };
+  }, [open]);
 
   if (!open || !mounted) return null;
 
@@ -110,7 +104,7 @@ export function Dialog({
         WebkitOverflowScrolling: 'touch',
       }}
       onClick={e => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) onCloseRef.current();
       }}
     >
       <div
@@ -165,7 +159,7 @@ export function Dialog({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => onCloseRef.current()}
             aria-label="Close dialog"
             style={{
               background: 'none',
@@ -190,4 +184,3 @@ export function Dialog({
     document.body
   );
 }
-
